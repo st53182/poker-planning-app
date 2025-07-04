@@ -25,13 +25,13 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # 📄 Serve Vue SPA
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
-def serve_vue_app(path):
-    # Если путь существует как файл - отдать файл
-    file_path = os.path.join(app.static_folder, path)
-    if path != "" and os.path.exists(file_path):
+def catch_all(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        # если файл существует в static, отдать его
         return send_from_directory(app.static_folder, path)
-    # Иначе всегда возвращаем index.html для обработки Vue
-    return send_from_directory(app.static_folder, "index.html")
+    else:
+        # иначе вернуть index.html
+        return send_from_directory(app.static_folder, "index.html")
 
 @app.route("/test")
 def test_static():
