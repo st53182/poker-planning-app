@@ -7,9 +7,10 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 
+# 📦 Flask + Vue build folder
 app = Flask(
     __name__,
-    static_folder="frontend/dist",  # 📁 Vue build folder
+    static_folder="frontend/dist",  # путь к Vue build
     static_url_path="/"
 )
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "super-secret-key")
@@ -18,13 +19,20 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+
+# 📄 Serve Vue SPA
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
-def serve_vue_app(path):
-    if path != "" and os.path.exists("static/" + path):
-        return send_from_directory("static", path)
+def serve_vue(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        # если запрашивают реальный файл, отдать его
+        return send_from_directory(app.static_folder, path)
     else:
-        return send_from_directory("static", "index.html")
+        # иначе всегда возвращаем index.html (SPA)
+        return send_from_directory(app.static_folder, "index.html")
+
+
 # 📦 Models
 class PlanningRoom(db.Model):
     id = db.Column(db.String(36), primary_key=True)
@@ -62,15 +70,6 @@ class Vote(db.Model):
 
 with app.app_context():
     db.create_all()
-
-# 🌐 Serve Vue frontend
-@app.route("/")
-def serve_vue():
-    return send_from_directory(app.static_folder, "index.html")
-
-@app.route("/<path:path>")
-def serve_vue_spa(path):
-    return send_from_directory(app.static_folder, "index.html")
 
 
 # 📡 SocketIO Events
@@ -121,5 +120,4 @@ def handle_vote(data):
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=10000)
-
 
