@@ -1,0 +1,1 @@
+web: gunicorn socketio_server:app --worker-class eventlet -w 1 -b :10000
