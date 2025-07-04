@@ -10,7 +10,7 @@ import os
 # 📦 Flask + Vue build folder
 app = Flask(
     __name__,
-    static_folder=os.path.join(os.getcwd(), "frontend/dist"),  # путь к Vue build
+    static_folder= "frontend/dist",  # путь к Vue build
     static_url_path="/"
 )
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "super-secret-key")
@@ -26,10 +26,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 @app.route("/<path:path>")
 def serve_vue(path):
     if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        # если запрашивают реальный файл, отдать его
         return send_from_directory(app.static_folder, path)
     else:
-        # иначе всегда возвращаем index.html (SPA)
         return send_from_directory(app.static_folder, "index.html")
 
 
