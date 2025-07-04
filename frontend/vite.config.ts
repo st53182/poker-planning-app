@@ -5,7 +5,7 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   build: {
-    outDir: '../backend/static', // <-- Flask будет раздавать из /static
-    emptyOutDir: true
+    outDir: "../frontend/dist",
+    emptyOutDir: true,
   }
 })
