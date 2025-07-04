@@ -1,48 +1,30 @@
 <template>
-  <header>
+  <div class="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div class="max-w-md w-full bg-white p-8 rounded-lg shadow">
+      <h1 class="text-3xl font-bold text-center text-blue-600 mb-6">Planning Poker</h1>
 
+      <div class="space-y-4">
+        <router-link
+          to="/create"
+          class="block w-full text-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded"
+        >
+          🚀 Создать новую комнату
+        </router-link>
 
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+        <router-link
+          to="/join"
+          class="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded"
+        >
+          ✅ Присоединиться к комнате
+        </router-link>
+      </div>
     </div>
-  </header>
-
-  <main>
-    <TheWelcome />
-  </main>
+  </div>
 </template>
 
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
 </script>
 
-<style scoped>
-header {
-  line-height: 1.5;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
+<style>
+/* Здесь можно оставить Tailwind, кастомные стили пока не нужны */
 </style>
