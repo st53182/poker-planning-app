@@ -1,7 +1,7 @@
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask
+from flask import Flask, render_template_string
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
 app = Flask(__name__)
