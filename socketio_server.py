@@ -10,7 +10,7 @@ import os
 # 📦 Flask + Vue build folder
 app = Flask(
     __name__,
-    static_folder=os.path.join(os.path.dirname(__file__), "static"),
+    static_folder=os.path.abspath("backend/static"),
 
     static_url_path="/"
 )
@@ -31,7 +31,9 @@ def serve_vue(path):
     else:
         return send_from_directory(app.static_folder, "index.html")
 
-
+@app.route("/test")
+def test_static():
+    return send_from_directory(app.static_folder, "index.html")
 # 📦 Models
 class PlanningRoom(db.Model):
     id = db.Column(db.String(36), primary_key=True)
