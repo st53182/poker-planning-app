@@ -10,7 +10,8 @@ import os
 # 📦 Flask + Vue build folder
 app = Flask(
     __name__,
-    static_folder="backend/static",
+    static_folder=os.path.join(os.path.dirname(__file__), "static"),
+
     static_url_path="/"
 )
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "super-secret-key")
