@@ -1,20 +1,30 @@
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    static_folder="frontend/dist",  # 📁 Vue build folder
+    static_url_path="/"
+)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "super-secret-key")
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///db.sqlite3")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
-
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_vue_app(path):
+    if path != "" and os.path.exists("static/" + path):
+        return send_from_directory("static", path)
+    else:
+        return send_from_directory("static", "index.html")
 # 📦 Models
 class PlanningRoom(db.Model):
     id = db.Column(db.String(36), primary_key=True)
@@ -53,66 +63,14 @@ class Vote(db.Model):
 with app.app_context():
     db.create_all()
 
-
-# 📄 Тестовая HTML страница
+# 🌐 Serve Vue frontend
 @app.route("/")
-def index():
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Planning Poker Test</title>
-        <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    </head>
-    <body>
-        <h1>Planning Poker Test</h1>
-        <input id="room" placeholder="Room ID" value="test-room">
-        <input id="name" placeholder="Your Name">
-        <input id="competence" placeholder="Competence (e.g., Frontend)">
-        <button onclick="joinRoom()">Join Room</button>
-        <br><br>
-        <input id="story" placeholder="Story Title">
-        <button onclick="createStory()">Create Story</button>
-        <br><br>
-        <input id="vote" placeholder="Vote (e.g., 5)">
-        <button onclick="sendVote()">Send Vote</button>
-        <ul id="log"></ul>
-        <script>
-            const socket = io();
+def serve_vue():
+    return send_from_directory(app.static_folder, "index.html")
 
-            socket.on('connect', () => log('✅ Connected'));
-            socket.on('user_joined', (data) => log(`👤 ${data.name} joined ${data.room}`));
-            socket.on('new_vote', (data) => log(`🗳 Vote in ${data.room}: ${data.points}`));
-
-            function joinRoom() {
-                const room = document.getElementById('room').value;
-                const name = document.getElementById('name').value;
-                const competence = document.getElementById('competence').value;
-                socket.emit('join_room', {room, name, competence});
-            }
-
-            function createStory() {
-                const room = document.getElementById('room').value;
-                const story = document.getElementById('story').value;
-                socket.emit('create_story', {room, title: story});
-            }
-
-            function sendVote() {
-                const room = document.getElementById('room').value;
-                const points = document.getElementById('vote').value;
-                socket.emit('vote', {room, points});
-            }
-
-            function log(message) {
-                const li = document.createElement('li');
-                li.textContent = message;
-                document.getElementById('log').appendChild(li);
-            }
-        </script>
-    </body>
-    </html>
-    """)
+@app.route("/<path:path>")
+def serve_vue_spa(path):
+    return send_from_directory(app.static_folder, "index.html")
 
 
 # 📡 SocketIO Events
@@ -154,7 +112,7 @@ def handle_vote(data):
     room_id = data['room']
     points = float(data['points'])
 
-    vote = Vote(points=points, competence='Frontend', participant_id=1, story_id=1)  # Placeholder IDs
+    vote = Vote(points=points, competence='Frontend', participant_id=1, story_id=1)  # TODO: Replace placeholder IDs
     db.session.add(vote)
     db.session.commit()
 
@@ -163,4 +121,5 @@ def handle_vote(data):
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=10000)
+
 
