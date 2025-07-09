@@ -117,14 +117,14 @@
                     🔄 Переголосовать
                   </button>
                   <button
-                    v-else-if="currentStory?.voting_state === 'closed'"
+                    v-else-if="currentStory && currentStory.voting_state === 'closed'"
                     @click="startVoting"
                     class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                   >
                     ▶️ Начать голосование
                   </button>
                   <button
-                    v-else-if="currentStory?.voting_state === 'closed'"
+                    v-else-if="currentStory && currentStory.voting_state === 'closed'"
                     @click="revealVotes"
                     class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
                   >
@@ -279,16 +279,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useSocket } from '../composables/useSocket'
 import { COMPETENCIES, STORY_POINTS, HOURS } from '../types'
 import type { Participant, Story, Vote, Room, SimilarTask } from '../types'
 
 const route = useRoute()
-const router = useRouter()
 const roomId = route.params.id as string
 
-const { connect, disconnect, emit, on, off } = useSocket()
+const { connect, disconnect, emit, on } = useSocket()
 
 const joined = ref(false)
 const joining = ref(false)

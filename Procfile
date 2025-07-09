@@ -1,1 +1,1 @@
-web: gunicorn socketio_server:app --worker-class eventlet -w 1 -b :10000
+web: gunicorn socketio_server:app --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT
