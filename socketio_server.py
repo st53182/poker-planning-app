@@ -47,8 +47,7 @@ class PlanningRoom(db.Model):
     name = db.Column(db.String(255), nullable=False)
     estimation_type = db.Column(db.String(20), default="story_points")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    current_story_id = db.Column(db.Integer, db.ForeignKey('poker_story.id'), nullable=True)
-    current_story = db.relationship('PokerStory', foreign_keys=[current_story_id])
+    current_story_id = db.Column(db.Integer, nullable=True)
 
     participants = db.relationship('Participant', backref='room', cascade="all, delete-orphan")
     stories = db.relationship('PokerStory', foreign_keys='PokerStory.room_id', backref='room', cascade="all, delete-orphan")
