@@ -1,70 +1,87 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-white">
-    <div v-if="!joined" class="min-h-screen flex flex-col justify-center items-center">
-      <div class="text-center mb-8">
-        <h1 class="text-5xl font-bold text-blue-800 mb-2">Planning Poker</h1>
-        <p class="text-gray-600 text-lg">Join the estimation session</p>
-      </div>
-      
-      <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100 w-96">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Join Room</h2>
-        
-        <div class="mb-6">
-          <label class="block mb-2 text-sm font-medium text-gray-700">Your Name</label>
-          <input
-            v-model="participantName"
-            type="text"
-            placeholder="Enter your name..."
-            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            required
-          />
+  <div class="min-h-screen bg-white">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-100 py-4">
+      <div class="container mx-auto px-6 flex justify-between items-center">
+        <router-link to="/" class="text-2xl font-bold text-blue-600">Planning Poker</router-link>
+        <div class="flex gap-3">
+          <button class="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+            Войти
+          </button>
+          <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            Регистрация
+          </button>
         </div>
-        
-        <div class="mb-8">
-          <label class="block mb-2 text-sm font-medium text-gray-700">Your Competency</label>
-          <select
-            v-model="competence"
-            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            required
-          >
-            <option value="">Select competency</option>
-            <option v-for="comp in COMPETENCIES" :key="comp" :value="comp">
-              {{ comp }}
-            </option>
-          </select>
-        </div>
-        
-        <button
-          @click="joinRoom"
-          :disabled="!participantName.trim() || !competence || joining"
-          class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors duration-200 flex items-center justify-center"
-        >
-          <span v-if="joining" class="mr-2">⏳</span>
-          {{ joining ? 'Connecting...' : '🔗 Join Room' }}
-        </button>
       </div>
-      
-      <router-link
-        to="/"
-        class="mt-6 text-blue-600 hover:text-blue-800 font-medium transition-colors"
-      >
-        ← Back to Home
-      </router-link>
-    </div>
+    </header>
 
-    <div v-else>
-      <div class="container mx-auto px-4 py-6">
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-8 mb-6">
-          <div class="flex justify-between items-center mb-6">
+    <main v-if="!joined" class="container mx-auto px-6 py-16">
+      <div class="max-w-2xl mx-auto">
+        <div class="text-center mb-12">
+          <h1 class="text-4xl font-bold text-gray-800 mb-4">Присоединиться к сессии</h1>
+          <p class="text-xl text-gray-600">Введите ваши данные для участия в оценке</p>
+        </div>
+        
+        <form @submit.prevent="joinRoom" class="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+          <div class="mb-8">
+            <label class="block mb-3 text-lg font-medium text-gray-700">Ваше имя</label>
+            <input
+              v-model="participantName"
+              type="text"
+              placeholder="Введите ваше имя..."
+              class="w-full border border-gray-300 rounded-lg px-4 py-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
+              required
+            />
+          </div>
+          
+          <div class="mb-10">
+            <label class="block mb-3 text-lg font-medium text-gray-700">Ваша компетенция</label>
+            <select
+              v-model="competence"
+              class="w-full border border-gray-300 rounded-lg px-4 py-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
+              required
+            >
+              <option value="">Выберите компетенцию</option>
+              <option v-for="comp in COMPETENCIES" :key="comp" :value="comp">
+                {{ comp }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="flex flex-col sm:flex-row gap-4">
+            <button
+              type="submit"
+              :disabled="!participantName.trim() || !competence || joining"
+              class="flex-1 bg-green-500 text-white py-4 px-6 rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium transition-colors duration-200 flex items-center justify-center text-lg"
+            >
+              <span v-if="joining" class="mr-2">⏳</span>
+              {{ joining ? 'Подключение...' : '🔗 Присоединиться' }}
+            </button>
+            
+            <router-link
+              to="/"
+              class="flex-1 bg-gray-100 text-gray-700 py-4 px-6 rounded-lg hover:bg-gray-200 font-medium transition-colors text-lg text-center"
+            >
+              ← Назад
+            </router-link>
+          </div>
+        </form>
+      </div>
+    </main>
+
+    <div v-else class="bg-white">
+      <main class="container mx-auto px-6 py-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 mb-8">
+          <div class="flex justify-between items-center mb-8">
             <div>
-              <h1 class="text-4xl font-bold text-blue-800 mb-2">🃏 {{ room?.name }}</h1>
-              <p class="text-gray-600 text-lg">Estimation in {{ room?.estimation_type === 'story_points' ? 'Story Points' : 'Hours' }}</p>
+              <h1 class="text-4xl font-bold text-gray-800 mb-2">🃏 {{ room?.name }}</h1>
+              <p class="text-xl text-gray-600">Оценка в {{ room?.estimation_type === 'story_points' ? 'Story Points' : 'часах' }}</p>
             </div>
             <router-link
               to="/"
-              class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 font-medium transition-colors"
+              class="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 font-medium transition-colors"
             >
-              ⬅️ Home
+              ← Главная
             </router-link>
           </div>
         
@@ -72,173 +89,174 @@
             <div class="lg:col-span-2">
               <div class="mb-8">
                 <div class="flex justify-between items-center mb-6">
-                  <h2 class="text-2xl font-semibold text-gray-800">Stories</h2>
+                  <h2 class="text-2xl font-semibold text-gray-800">Истории</h2>
                   <button
                     v-if="currentParticipant?.is_admin"
                     @click="showCreateStory = true"
-                    class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-medium transition-colors"
+                    class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 font-medium transition-colors"
                   >
-                    ➕ Add Story
+                    ➕ Добавить историю
                   </button>
                 </div>
                 
-                <div v-if="stories.length === 0" class="text-gray-500 text-center py-12 bg-gray-50 rounded-lg">
-                  <p class="text-lg">No stories to estimate yet</p>
+                <div v-if="stories.length === 0" class="text-gray-500 text-center py-12 bg-gray-50 rounded-lg border border-gray-100">
+                  <p class="text-lg">Пока нет историй для оценки</p>
+                  <p class="text-sm mt-2">Администратор может добавить первую историю</p>
                 </div>
               
-              <div v-else class="space-y-3">
-                <div
-                  v-for="story in stories"
-                  :key="story.id"
-                  :class="[
-                    'border rounded-lg p-4 cursor-pointer transition-colors',
-                    currentStoryId === story.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                  ]"
-                  @click="setCurrentStory(story.id)"
-                >
-                  <div class="flex justify-between items-start">
-                    <div class="flex-1">
-                      <h3 class="font-semibold">{{ story.title }}</h3>
-                      <p v-if="story.description" class="text-gray-600 text-sm mt-1">{{ story.description }}</p>
-                      <div class="flex items-center mt-2 space-x-4">
-                        <span :class="[
-                          'px-2 py-1 rounded text-xs font-medium',
-                          story.voting_state === 'closed' ? 'bg-yellow-100 text-yellow-800' :
-                          story.voting_state === 'open' ? 'bg-blue-100 text-blue-800' :
-                          'bg-green-100 text-green-800'
-                        ]">
-                          {{ story.voting_state === 'closed' ? 'Голосование' : 
-                             story.voting_state === 'open' ? 'Результаты' : 'Завершено' }}
-                        </span>
-                        <span v-if="story.final_estimate" class="text-sm text-gray-600">
-                          Оценка: {{ story.final_estimate }} {{ room?.estimation_type === 'story_points' ? 'SP' : 'ч' }}
-                        </span>
+                <div v-else class="space-y-4">
+                  <div
+                    v-for="story in stories"
+                    :key="story.id"
+                    :class="[
+                      'bg-white border rounded-xl p-6 cursor-pointer transition-all shadow-sm hover:shadow-md',
+                      currentStoryId === story.id ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300'
+                    ]"
+                    @click="setCurrentStory(story.id)"
+                  >
+                    <div class="flex justify-between items-start">
+                      <div class="flex-1">
+                        <h3 class="font-semibold text-lg text-gray-800">{{ story.title }}</h3>
+                        <p v-if="story.description" class="text-gray-600 mt-2">{{ story.description }}</p>
+                        <div class="flex items-center mt-4 space-x-4">
+                          <span :class="[
+                            'px-3 py-1 rounded-full text-sm font-medium',
+                            story.voting_state === 'closed' ? 'bg-yellow-100 text-yellow-800' :
+                            story.voting_state === 'open' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          ]">
+                            {{ story.voting_state === 'closed' ? 'Ожидает голосования' : 
+                               story.voting_state === 'open' ? 'Показать результаты' : 'Завершено' }}
+                          </span>
+                          <span v-if="story.final_estimate" class="text-sm text-gray-600 font-medium">
+                            Итоговая оценка: {{ story.final_estimate }} {{ room?.estimation_type === 'story_points' ? 'SP' : 'ч' }}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+            
+              <div v-if="currentStoryId" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="flex justify-between items-center mb-6">
+                  <h3 class="text-xl font-semibold text-gray-800">Текущая история</h3>
+                  <div v-if="currentParticipant?.is_admin" class="space-x-3">
+                    <button
+                      v-if="currentStory?.voting_state === 'completed'"
+                      @click="startVoting"
+                      class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                    >
+                      🔄 Переголосовать
+                    </button>
+                    <button
+                      v-else-if="currentStory && currentStory.voting_state === 'closed'"
+                      @click="startVoting"
+                      class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 font-medium transition-colors"
+                    >
+                      ▶️ Начать голосование
+                    </button>
+                    <button
+                      v-else-if="currentStory && currentStory.voting_state === 'open'"
+                      @click="revealVotes"
+                      class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 font-medium transition-colors"
+                    >
+                      👁️ Показать результаты
+                    </button>
+                  </div>
+                </div>
+                
+                <div v-if="currentStory?.voting_state === 'closed'" class="mb-6">
+                  <h4 class="font-medium mb-4 text-lg text-gray-800">Выберите вашу оценку:</h4>
+                  <div class="grid grid-cols-6 gap-3">
+                    <button
+                      v-for="value in estimationValues"
+                      :key="value"
+                      :class="[
+                        'aspect-square rounded-xl border-2 font-bold text-lg transition-all shadow-sm hover:shadow-md',
+                        selectedVote === value 
+                          ? 'border-blue-500 bg-blue-100 text-blue-700 shadow-md' 
+                          : 'border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50'
+                      ]"
+                      @click="submitVote(value)"
+                      @mouseenter="showSimilarTasks(value)"
+                      @mouseleave="hideSimilarTasks"
+                    >
+                      {{ value }}
+                    </button>
+                  </div>
+                  
+                  <div v-if="similarTasks.length > 0" class="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <h5 class="font-medium text-sm mb-3 text-yellow-800">Похожие задачи ({{ hoveredValue }}):</h5>
+                    <div class="space-y-2">
+                      <div v-for="task in similarTasks" :key="task.title" class="text-sm text-yellow-700 bg-white p-2 rounded border border-yellow-100">
+                        {{ task.title }} - {{ task.points }} {{ room?.estimation_type === 'story_points' ? 'SP' : 'ч' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-if="currentStory?.voting_state === 'open'" class="mb-6">
+                  <h4 class="font-medium mb-4 text-lg text-gray-800">Результаты голосования:</h4>
+                  <div class="space-y-3">
+                    <div
+                      v-for="vote in currentVotes"
+                      :key="vote.participant_name"
+                      class="flex justify-between items-center p-4 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <div>
+                        <span class="font-medium text-gray-800">{{ vote.participant_name }}</span>
+                        <span class="text-sm text-gray-600 ml-2">({{ vote.competence }})</span>
+                      </div>
+                      <span class="font-bold text-xl text-blue-600">{{ vote.points }}</span>
+                    </div>
+                  </div>
+                  
+                  <div v-if="currentParticipant?.is_admin" class="mt-6 flex items-center space-x-3">
+                    <input
+                      v-model="finalEstimate"
+                      type="number"
+                      step="0.5"
+                      placeholder="Финальная оценка"
+                      class="border border-gray-300 rounded-lg px-4 py-3 w-40 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <button
+                      @click="finalizeEstimate"
+                      :disabled="!finalEstimate"
+                      class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium transition-colors"
+                    >
+                      ✅ Зафиксировать
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                  Проголосовало: <span class="font-medium">{{ voteCount }}</span> из <span class="font-medium">{{ participants.length }}</span>
+                </div>
+              </div>
             </div>
             
-            <div v-if="currentStoryId" class="bg-gray-100 rounded-lg p-6">
-              <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">Текущая история</h3>
-                <div v-if="currentParticipant?.is_admin" class="space-x-2">
-                  <button
-                    v-if="currentStory?.voting_state === 'completed'"
-                    @click="startVoting"
-                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                  >
-                    🔄 Переголосовать
-                  </button>
-                  <button
-                    v-else-if="currentStory && currentStory.voting_state === 'closed'"
-                    @click="startVoting"
-                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                  >
-                    ▶️ Начать голосование
-                  </button>
-                  <button
-                    v-else-if="currentStory && currentStory.voting_state === 'closed'"
-                    @click="revealVotes"
-                    class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
-                  >
-                    👁️ Показать результаты
-                  </button>
-                </div>
-              </div>
-              
-              <div v-if="currentStory?.voting_state === 'closed'" class="mb-6">
-                <h4 class="font-medium mb-3">Выберите вашу оценку:</h4>
-                <div class="grid grid-cols-6 gap-2">
-                  <button
-                    v-for="value in estimationValues"
-                    :key="value"
-                    :class="[
-                      'aspect-square rounded-lg border-2 font-bold text-lg transition-all',
-                      selectedVote === value 
-                        ? 'border-blue-500 bg-blue-100 text-blue-700' 
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    ]"
-                    @click="submitVote(value)"
-                    @mouseenter="showSimilarTasks(value)"
-                    @mouseleave="hideSimilarTasks"
-                  >
-                    {{ value }}
-                  </button>
-                </div>
-                
-                <div v-if="similarTasks.length > 0" class="mt-4 p-3 bg-yellow-50 rounded border">
-                  <h5 class="font-medium text-sm mb-2">Похожие задачи ({{ hoveredValue }}):</h5>
-                  <div class="space-y-1">
-                    <div v-for="task in similarTasks" :key="task.title" class="text-xs text-gray-600">
-                      {{ task.title }} - {{ task.points }} {{ room?.estimation_type === 'story_points' ? 'SP' : 'ч' }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div v-if="currentStory?.voting_state === 'open'" class="mb-6">
-                <h4 class="font-medium mb-3">Результаты голосования:</h4>
-                <div class="space-y-2">
-                  <div
-                    v-for="vote in currentVotes"
-                    :key="vote.participant_name"
-                    class="flex justify-between items-center p-3 bg-white rounded border"
-                  >
-                    <div>
-                      <span class="font-medium">{{ vote.participant_name }}</span>
-                      <span class="text-sm text-gray-600 ml-2">({{ vote.competence }})</span>
-                    </div>
-                    <span class="font-bold text-lg">{{ vote.points }}</span>
-                  </div>
-                </div>
-                
-                <div v-if="currentParticipant?.is_admin" class="mt-4 flex items-center space-x-2">
-                  <input
-                    v-model="finalEstimate"
-                    type="number"
-                    step="0.5"
-                    placeholder="Финальная оценка"
-                    class="border rounded px-3 py-2 w-32"
-                  />
-                  <button
-                    @click="finalizeEstimate"
-                    :disabled="!finalEstimate"
-                    class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-                  >
-                    ✅ Зафиксировать
-                  </button>
-                </div>
-              </div>
-              
-              <div class="text-sm text-gray-600">
-                Проголосовало: {{ voteCount }} из {{ participants.length }}
-              </div>
-            </div>
-          </div>
-          
             <div class="lg:col-span-1">
-              <div class="bg-gray-50 rounded-lg p-6">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Participants</h2>
+              <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Участники</h2>
                 <div class="space-y-3">
                   <div v-for="participant in participants" :key="participant.id" 
-                       class="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
+                       class="flex justify-between items-center p-4 bg-gray-50 rounded-lg border border-gray-100">
                     <div>
                       <span class="font-medium text-gray-800">{{ participant.name }}</span>
                       <span class="text-sm text-gray-500 block">{{ participant.competence }}</span>
                     </div>
                     <div class="flex items-center space-x-2">
                       <span v-if="participant.is_admin" 
-                            class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
-                        Admin
+                            class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium">
+                        Админ
                       </span>
                       <button
                         v-if="currentParticipant?.is_admin && !participant.is_admin"
                         @click="makeAdmin(participant.id)"
-                        class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300"
+                        class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-200 font-medium transition-colors"
                       >
-                        Make Admin
+                        Сделать админом
                       </button>
                       <div class="w-3 h-3 bg-green-400 rounded-full"></div>
                     </div>
@@ -246,48 +264,54 @@
                 </div>
               </div>
             </div>
+          </div>
         </div>
-      </div>
+      </main>
+
+      <!-- Footer -->
+      <footer class="bg-gray-50 py-8 text-center text-gray-500 text-sm">
+        <p>© 2025 Planning Poker. Все права защищены.</p>
+      </footer>
     </div>
 
+    <!-- Create Story Modal -->
     <div v-if="showCreateStory" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-96">
-        <h3 class="text-lg font-semibold mb-4">Создать новую историю</h3>
-        <div class="mb-4">
-          <label class="block mb-2 text-sm font-medium">Название</label>
+      <div class="bg-white rounded-xl shadow-lg p-8 w-96 max-w-md mx-4">
+        <h3 class="text-2xl font-semibold mb-6 text-gray-800">Создать новую историю</h3>
+        <div class="mb-6">
+          <label class="block mb-3 text-lg font-medium text-gray-700">Название</label>
           <input
             v-model="newStoryTitle"
             type="text"
             placeholder="Введите название истории..."
-            class="w-full border rounded px-3 py-2"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             required
           />
         </div>
-        <div class="mb-6">
-          <label class="block mb-2 text-sm font-medium">Описание (опционально)</label>
+        <div class="mb-8">
+          <label class="block mb-3 text-lg font-medium text-gray-700">Описание (опционально)</label>
           <textarea
             v-model="newStoryDescription"
             placeholder="Введите описание..."
-            class="w-full border rounded px-3 py-2 h-20 resize-none"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 h-24 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           ></textarea>
         </div>
-        <div class="flex space-x-2">
+        <div class="flex space-x-3">
           <button
             @click="createStory"
             :disabled="!newStoryTitle.trim()"
-            class="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 disabled:opacity-50"
+            class="flex-1 bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium transition-colors"
           >
             ✅ Создать
           </button>
           <button
             @click="cancelCreateStory"
-            class="flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600"
+            class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 font-medium transition-colors"
           >
             ❌ Отмена
           </button>
         </div>
       </div>
-    </div>
     </div>
   </div>
 </template>
