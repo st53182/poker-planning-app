@@ -8,7 +8,11 @@ export function useSocket() {
   const connect = () => {
     if (socket.value?.connected) return
     
-    socket.value = io('http://localhost:10000', {
+    const socketUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:10000' 
+      : window.location.origin
+    
+    socket.value = io(socketUrl, {
       transports: ['websocket', 'polling']
     })
     

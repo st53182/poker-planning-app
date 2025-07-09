@@ -46,7 +46,6 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSocket } from '../composables/useSocket'
-import { ESTIMATION_TYPES } from '../types'
 
 const roomName = ref('')
 const estimationType = ref<'story_points' | 'hours'>('story_points')
