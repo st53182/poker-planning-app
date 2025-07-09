@@ -447,5 +447,6 @@ def handle_make_admin(data):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
+    print(f"🚀 Starting Planning Poker server on port {port}")
     socketio.run(app, host="0.0.0.0", port=port)
 
