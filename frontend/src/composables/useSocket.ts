@@ -12,16 +12,24 @@ export function useSocket() {
       ? 'http://localhost:10000' 
       : window.location.origin
     
+    console.log('🔌 Attempting SocketIO connection to:', socketUrl)
+    
     socket.value = io(socketUrl, {
       transports: ['websocket', 'polling']
     })
     
     socket.value.on('connect', () => {
+      console.log('✅ SocketIO connected successfully')
       connected.value = true
     })
     
     socket.value.on('disconnect', () => {
+      console.log('❌ SocketIO disconnected')
       connected.value = false
+    })
+    
+    socket.value.on('connect_error', (error) => {
+      console.error('🚫 SocketIO connection error:', error)
     })
   }
   
@@ -35,9 +43,10 @@ export function useSocket() {
   
   const emit = (event: string, data?: any) => {
     if (socket.value?.connected) {
+      console.log('📤 Emitting event:', event, 'with data:', data)
       socket.value.emit(event, data)
     } else {
-      console.warn('Socket not connected, cannot emit event:', event)
+      console.warn('🚫 Socket not connected, cannot emit event:', event)
     }
   }
   
