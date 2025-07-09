@@ -69,7 +69,6 @@ class PokerStory(db.Model):
     room_id = db.Column(db.String(36), db.ForeignKey('planning_room.id'), nullable=False)
     voting_state = db.Column(db.String(20), default="closed")
     final_estimate = db.Column(db.Float, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     votes = db.relationship('Vote', backref='story', cascade="all, delete-orphan")
 
 
@@ -79,7 +78,6 @@ class Vote(db.Model):
     competence = db.Column(db.String(50), nullable=False)
     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
     story_id = db.Column(db.Integer, db.ForeignKey('poker_story.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 with app.app_context():
@@ -92,7 +90,7 @@ def find_similar_tasks(room_id, vote_value, competence, limit=10):
         Vote.competence == competence,
         Vote.points.between(vote_value * 0.8, vote_value * 1.2),
         PokerStory.voting_state == 'completed'
-    ).order_by(Vote.created_at.desc()).limit(limit).all()
+    ).order_by(Vote.id.desc()).limit(limit).all()
 
 # 📡 SocketIO Events
 @socketio.on('create_room')
@@ -414,7 +412,7 @@ def handle_get_similar_tasks(data):
         'tasks': [{
             'title': story.title,
             'points': vote.points,
-            'created_at': vote.created_at.isoformat()
+            'vote_id': vote.id
         } for vote, story in similar_tasks]
     })
 
