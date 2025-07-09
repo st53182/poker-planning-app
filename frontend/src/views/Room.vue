@@ -52,7 +52,7 @@
       </router-link>
     </div>
 
-    <div v-else class="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+    <div v-else>
       <div class="container mx-auto px-4 py-6">
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-8 mb-6">
           <div class="flex justify-between items-center mb-6">
@@ -287,6 +287,7 @@
           </button>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
