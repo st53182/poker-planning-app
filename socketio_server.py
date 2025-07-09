@@ -47,8 +47,7 @@ class PlanningRoom(db.Model):
     name = db.Column(db.String(255), nullable=False)
     estimation_type = db.Column(db.String(20), default="story_points")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    current_story_id = db.Column(db.Integer, db.ForeignKey('poker_story.id'), nullable=True)
-    current_story = db.relationship('PokerStory', foreign_keys=[current_story_id])
+    current_story_id = db.Column(db.Integer, nullable=True)
 
     participants = db.relationship('Participant', backref='room', cascade="all, delete-orphan")
     stories = db.relationship('PokerStory', foreign_keys='PokerStory.room_id', backref='room', cascade="all, delete-orphan")
@@ -70,7 +69,6 @@ class PokerStory(db.Model):
     room_id = db.Column(db.String(36), db.ForeignKey('planning_room.id'), nullable=False)
     voting_state = db.Column(db.String(20), default="closed")
     final_estimate = db.Column(db.Float, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     votes = db.relationship('Vote', backref='story', cascade="all, delete-orphan")
 
 
@@ -80,7 +78,6 @@ class Vote(db.Model):
     competence = db.Column(db.String(50), nullable=False)
     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
     story_id = db.Column(db.Integer, db.ForeignKey('poker_story.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 with app.app_context():
@@ -93,7 +90,7 @@ def find_similar_tasks(room_id, vote_value, competence, limit=10):
         Vote.competence == competence,
         Vote.points.between(vote_value * 0.8, vote_value * 1.2),
         PokerStory.voting_state == 'completed'
-    ).order_by(Vote.created_at.desc()).limit(limit).all()
+    ).order_by(Vote.id.desc()).limit(limit).all()
 
 # 📡 SocketIO Events
 @socketio.on('create_room')
@@ -110,81 +107,119 @@ def handle_create_room(data):
 
 @socketio.on('join_room')
 def handle_join(data):
-    room_id = data['room']
-    name = data['name']
-    competence = data['competence']
-    session_id = data.get('session_id')
+    try:
+        print(f"🔍 DEBUG: join_room handler started with data: {data}")
+        
+        room_id = data['room']
+        name = data['name']
+        competence = data['competence']
+        session_id = data.get('session_id')
+        
+        print(f"🔍 DEBUG: Parsed data - room_id: {room_id}, name: {name}, competence: {competence}")
 
-    if competence not in COMPETENCIES:
-        emit('error', {'message': 'Invalid competence'})
-        return
+        if competence not in COMPETENCIES:
+            print(f"❌ DEBUG: Invalid competence: {competence}")
+            emit('error', {'message': 'Invalid competence'})
+            return
 
-    room = PlanningRoom.query.get(room_id)
-    if not room:
-        emit('error', {'message': 'Room not found'})
-        return
+        print(f"🔍 DEBUG: Looking up room: {room_id}")
+        room = PlanningRoom.query.get(room_id)
+        if not room:
+            print(f"❌ DEBUG: Room not found: {room_id}")
+            emit('error', {'message': 'Room not found'})
+            return
+        
+        print(f"✅ DEBUG: Room found: {room.name}")
 
-    existing_participant = Participant.query.filter_by(
-        room_id=room_id, 
-        name=name, 
-        competence=competence
-    ).first()
-    
-    if existing_participant:
-        existing_participant.session_id = session_id
-        participant = existing_participant
-    else:
-        is_first_participant = Participant.query.filter_by(room_id=room_id).count() == 0
-        participant = Participant(
+        print(f"🔍 DEBUG: Checking for existing participant")
+        existing_participant = Participant.query.filter_by(
+            room_id=room_id, 
             name=name, 
-            competence=competence, 
-            room_id=room_id,
-            is_admin=is_first_participant,
-            session_id=session_id
-        )
-        db.session.add(participant)
-    
-    db.session.commit()
+            competence=competence
+        ).first()
+        
+        if existing_participant:
+            print(f"✅ DEBUG: Found existing participant: {existing_participant.id}")
+            existing_participant.session_id = session_id
+            participant = existing_participant
+        else:
+            print(f"🔍 DEBUG: Creating new participant")
+            is_first_participant = Participant.query.filter_by(room_id=room_id).count() == 0
+            print(f"🔍 DEBUG: Is first participant: {is_first_participant}")
+            
+            participant = Participant(
+                name=name, 
+                competence=competence, 
+                room_id=room_id,
+                is_admin=is_first_participant,
+                session_id=session_id
+            )
+            db.session.add(participant)
+            print(f"✅ DEBUG: New participant added to session")
+        
+        print(f"🔍 DEBUG: Committing database changes")
+        db.session.commit()
+        print(f"✅ DEBUG: Database commit successful")
 
-    join_room(room_id)
-    
-    participants = Participant.query.filter_by(room_id=room_id).all()
-    stories = PokerStory.query.filter_by(room_id=room_id).all()
-    
-    emit('room_joined', {
-        'room': room_id,
-        'room_name': room.name,
-        'estimation_type': room.estimation_type,
-        'participant': {
-            'id': participant.id,
-            'name': participant.name,
-            'competence': participant.competence,
-            'is_admin': participant.is_admin
-        },
-        'participants': [{
-            'id': p.id,
-            'name': p.name,
-            'competence': p.competence,
-            'is_admin': p.is_admin
-        } for p in participants],
-        'stories': [{
-            'id': s.id,
-            'title': s.title,
-            'description': s.description,
-            'voting_state': s.voting_state,
-            'final_estimate': s.final_estimate
-        } for s in stories],
-        'current_story': room.current_story_id
-    })
-    
-    emit('user_joined', {
-        'participant': {
-            'id': participant.id,
-            'name': participant.name,
-            'competence': participant.competence,
-            'is_admin': participant.is_admin
+        print(f"🔍 DEBUG: Joining SocketIO room: {room_id}")
+        join_room(room_id)
+        print(f"✅ DEBUG: SocketIO room joined")
+        
+        print(f"🔍 DEBUG: Fetching participants and stories")
+        participants = Participant.query.filter_by(room_id=room_id).all()
+        stories = PokerStory.query.filter_by(room_id=room_id).all()
+        print(f"✅ DEBUG: Found {len(participants)} participants and {len(stories)} stories")
+        
+        print(f"🔍 DEBUG: Preparing room_joined response")
+        response_data = {
+            'room': room_id,
+            'room_name': room.name,
+            'estimation_type': room.estimation_type,
+            'participant': {
+                'id': participant.id,
+                'name': participant.name,
+                'competence': participant.competence,
+                'is_admin': participant.is_admin
+            },
+            'participants': [{
+                'id': p.id,
+                'name': p.name,
+                'competence': p.competence,
+                'is_admin': p.is_admin
+            } for p in participants],
+            'stories': [{
+                'id': s.id,
+                'title': s.title,
+                'description': s.description,
+                'voting_state': s.voting_state,
+                'final_estimate': s.final_estimate
+            } for s in stories],
+            'current_story': room.current_story_id
         }
-    }, room=room_id, include_self=False)
+        
+        print(f"🔍 DEBUG: Emitting room_joined event")
+        emit('room_joined', response_data)
+        print(f"✅ DEBUG: room_joined event emitted successfully")
+        
+        print(f"🔍 DEBUG: Emitting user_joined event to room")
+        emit('user_joined', {
+            'participant': {
+                'id': participant.id,
+                'name': participant.name,
+                'competence': participant.competence,
+                'is_admin': participant.is_admin
+            }
+        }, room=room_id, include_self=False)
+        print(f"✅ DEBUG: user_joined event emitted successfully")
+        
+        print(f"🎉 DEBUG: join_room handler completed successfully")
+        
+    except Exception as e:
+        print(f"💥 DEBUG: Exception in join_room handler: {str(e)}")
+        print(f"💥 DEBUG: Exception type: {type(e).__name__}")
+        import traceback
+        print(f"💥 DEBUG: Traceback: {traceback.format_exc()}")
+        emit('error', {'message': f'Server error: {str(e)}'})
 
 @socketio.on('create_story')
 def handle_create_story(data):
@@ -377,7 +412,7 @@ def handle_get_similar_tasks(data):
         'tasks': [{
             'title': story.title,
             'points': vote.points,
-            'created_at': vote.created_at.isoformat()
+            'vote_id': vote.id
         } for vote, story in similar_tasks]
     })
 

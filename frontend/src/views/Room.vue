@@ -1,27 +1,33 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-white">
     <div v-if="!joined" class="min-h-screen flex flex-col justify-center items-center">
-      <div class="bg-white p-6 rounded-lg shadow-md w-96">
-        <h2 class="text-2xl font-bold mb-4">Присоединение к комнате</h2>
-        <div class="mb-4">
-          <label class="block mb-2 text-sm font-medium">Ваше имя</label>
+      <div class="text-center mb-8">
+        <h1 class="text-5xl font-bold text-blue-800 mb-2">Planning Poker</h1>
+        <p class="text-gray-600 text-lg">Join the estimation session</p>
+      </div>
+      
+      <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100 w-96">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Join Room</h2>
+        
+        <div class="mb-6">
+          <label class="block mb-2 text-sm font-medium text-gray-700">Your Name</label>
           <input
             v-model="participantName"
             type="text"
-            placeholder="Введите ваше имя..."
-            class="w-full border rounded px-3 py-2"
+            placeholder="Enter your name..."
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             required
           />
         </div>
         
-        <div class="mb-6">
-          <label class="block mb-2 text-sm font-medium">Ваша компетенция</label>
+        <div class="mb-8">
+          <label class="block mb-2 text-sm font-medium text-gray-700">Your Competency</label>
           <select
             v-model="competence"
-            class="w-full border rounded px-3 py-2"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             required
           >
-            <option value="">Выберите компетенцию</option>
+            <option value="">Select competency</option>
             <option v-for="comp in COMPETENCIES" :key="comp" :value="comp">
               {{ comp }}
             </option>
@@ -31,45 +37,54 @@
         <button
           @click="joinRoom"
           :disabled="!participantName.trim() || !competence || joining"
-          class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors duration-200 flex items-center justify-center"
         >
-          {{ joining ? '⏳ Подключение...' : '🔗 Присоединиться' }}
+          <span v-if="joining" class="mr-2">⏳</span>
+          {{ joining ? 'Connecting...' : '🔗 Join Room' }}
         </button>
       </div>
+      
+      <router-link
+        to="/"
+        class="mt-6 text-blue-600 hover:text-blue-800 font-medium transition-colors"
+      >
+        ← Back to Home
+      </router-link>
     </div>
 
-    <div v-else class="container mx-auto px-4 py-6">
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-800">🃏 {{ room?.name }}</h1>
-            <p class="text-gray-600">Оценка в {{ room?.estimation_type === 'story_points' ? 'Story Points' : 'Часах' }}</p>
+    <div v-else>
+      <div class="container mx-auto px-4 py-6">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-8 mb-6">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h1 class="text-4xl font-bold text-blue-800 mb-2">🃏 {{ room?.name }}</h1>
+              <p class="text-gray-600 text-lg">Estimation in {{ room?.estimation_type === 'story_points' ? 'Story Points' : 'Hours' }}</p>
+            </div>
+            <router-link
+              to="/"
+              class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 font-medium transition-colors"
+            >
+              ⬅️ Home
+            </router-link>
           </div>
-          <router-link
-            to="/"
-            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-          >
-            ⬅️ На главную
-          </router-link>
-        </div>
         
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2">
-            <div class="mb-6">
-              <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold">Истории</h2>
-                <button
-                  v-if="currentParticipant?.is_admin"
-                  @click="showCreateStory = true"
-                  class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                >
-                  ➕ Добавить историю
-                </button>
-              </div>
-              
-              <div v-if="stories.length === 0" class="text-gray-500 text-center py-8">
-                Пока нет историй для оценки
-              </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2">
+              <div class="mb-8">
+                <div class="flex justify-between items-center mb-6">
+                  <h2 class="text-2xl font-semibold text-gray-800">Stories</h2>
+                  <button
+                    v-if="currentParticipant?.is_admin"
+                    @click="showCreateStory = true"
+                    class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    ➕ Add Story
+                  </button>
+                </div>
+                
+                <div v-if="stories.length === 0" class="text-gray-500 text-center py-12 bg-gray-50 rounded-lg">
+                  <p class="text-lg">No stories to estimate yet</p>
+                </div>
               
               <div v-else class="space-y-3">
                 <div
@@ -203,35 +218,34 @@
             </div>
           </div>
           
-          <div>
-            <div class="bg-white rounded-lg shadow p-4">
-              <h3 class="font-semibold mb-3">Участники ({{ participants.length }})</h3>
-              <div class="space-y-2">
-                <div
-                  v-for="participant in participants"
-                  :key="participant.id"
-                  class="flex justify-between items-center p-2 rounded bg-gray-50"
-                >
-                  <div>
-                    <div class="font-medium">{{ participant.name }}</div>
-                    <div class="text-sm text-gray-600">{{ participant.competence }}</div>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <span v-if="participant.is_admin" class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      Админ
-                    </span>
-                    <button
-                      v-if="currentParticipant?.is_admin && !participant.is_admin"
-                      @click="makeAdmin(participant.id)"
-                      class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300"
-                    >
-                      Сделать админом
-                    </button>
+            <div class="lg:col-span-1">
+              <div class="bg-gray-50 rounded-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Participants</h2>
+                <div class="space-y-3">
+                  <div v-for="participant in participants" :key="participant.id" 
+                       class="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
+                    <div>
+                      <span class="font-medium text-gray-800">{{ participant.name }}</span>
+                      <span class="text-sm text-gray-500 block">{{ participant.competence }}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                      <span v-if="participant.is_admin" 
+                            class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                        Admin
+                      </span>
+                      <button
+                        v-if="currentParticipant?.is_admin && !participant.is_admin"
+                        @click="makeAdmin(participant.id)"
+                        class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300"
+                      >
+                        Make Admin
+                      </button>
+                      <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>
@@ -273,6 +287,7 @@
           </button>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
