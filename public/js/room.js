@@ -48,9 +48,6 @@ class PlanningPokerRoom {
             this.submitVote();
         });
 
-        document.getElementById('joinRoomBtn').addEventListener('click', () => {
-            this.joinRoom();
-        });
 
         document.getElementById('dismissError').addEventListener('click', () => {
             document.getElementById('errorToast').classList.add('hidden');
