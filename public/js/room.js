@@ -211,6 +211,10 @@ class PlanningPokerRoom {
         this.updateStoriesList();
         this.updateCurrentStory();
         this.generateVotingCards();
+        
+        setTimeout(() => {
+            this.updateStoriesList();
+        }, 100);
     }
 
     generateVotingCards() {
