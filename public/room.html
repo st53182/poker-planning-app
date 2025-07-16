@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Poker - Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .voting-card {
+            aspect-ratio: 3/4;
+            transition: all 0.2s ease;
+        }
+        .voting-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .voting-card.selected {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div>
+                    <h1 id="roomName" class="text-2xl font-bold text-gray-900">Planning Room</h1>
+                    <p id="estimationType" class="text-sm text-gray-600">Estimation Type: Story Points</p>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <button 
+                        id="copyLinkBtn" 
+                        class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                        Copy Room Link
+                    </button>
+                    
+                    <div id="userInfo" class="text-sm text-gray-600">
+                        <span id="userName">Anonymous</span> (<span id="userCompetence">Fullstack</span>)
+                        <span id="adminBadge" class="hidden ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                            Admin
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="lg:col-span-2 space-y-6">
+                
+                <div id="currentStorySection" class="hidden bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 id="currentStoryTitle" class="text-xl font-semibold text-gray-900"></h2>
+                            <p id="currentStoryDescription" class="text-gray-600 mt-2 hidden"></p>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <span id="votingStateBadge" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                                Not Started
+                            </span>
+                        </div>
+                    </div>
+
+                    <div id="adminControls" class="hidden flex space-x-3 mb-4">
+                        <button 
+                            id="startVotingBtn"
+                            class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                            Start Voting
+                        </button>
+                        
+                        <button 
+                            id="revealVotesBtn"
+                            class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                            Reveal Votes (<span id="voteCount">0</span>/<span id="participantCount">0</span>)
+                        </button>
+                        
+                        <div id="finalizeControls" class="hidden flex space-x-2">
+                            <input 
+                                id="finalEstimateInput" 
+                                type="number" 
+                                step="0.5"
+                                placeholder="Final estimate"
+                                class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button 
+                                id="finalizeBtn"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            >
+                                Finalize
+                            </button>
+                            <button 
+                                id="voteAgainBtn"
+                                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                            >
+                                Vote Again
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="votingSection" class="hidden mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Cast Your Vote</h3>
+                        <div id="votingCards" class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-11 gap-3 mb-4">
+                        </div>
+                        
+                        <button 
+                            id="submitVoteBtn"
+                            class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                            Submit Vote: <span id="selectedVoteValue"></span>
+                        </button>
+                    </div>
+
+                    <div id="revealedVotesSection" class="hidden mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Voting Results</h3>
+                        <div id="revealedVotes" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        </div>
+                    </div>
+
+                    <div id="similarStoriesSection" class="hidden mt-4 p-4 bg-blue-50 rounded-lg">
+                        <h4 class="text-sm font-medium text-blue-900 mb-2">
+                            Similar stories estimated at <span id="similarVoteValue"></span> <span id="similarEstimationType">points</span>:
+                        </h4>
+                        <div id="similarStoriesList" class="space-y-1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Add New Story</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Story Title</label>
+                            <input 
+                                id="newStoryTitle"
+                                type="text" 
+                                placeholder="Enter story title"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                            <textarea 
+                                id="newStoryDescription"
+                                placeholder="Enter story description"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            ></textarea>
+                        </div>
+                        
+                        <button 
+                            id="createStoryBtn"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        >
+                            Add Story
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">All Stories</h3>
+                    
+                    <div id="storiesList" class="space-y-3">
+                        <p class="text-gray-500 text-center py-8">No stories yet. Add your first story above!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Participants (<span id="participantsCount">0</span>)</h3>
+                    
+                    <div id="participantsList" class="space-y-3">
+                        <p class="text-gray-500 text-center py-8">No participants yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorToast" class="hidden fixed bottom-4 right-4 p-4 bg-red-50 border border-red-200 rounded-lg shadow-lg">
+        <p id="errorMessage" class="text-red-800"></p>
+        <button id="dismissError" class="mt-2 text-sm text-red-600 hover:text-red-800">Dismiss</button>
+    </div>
+
+    <div id="joinModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Join Planning Room</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Name</label>
+                    <input 
+                        id="joinName"
+                        type="text" 
+                        placeholder="Enter your name"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Competence</label>
+                    <select 
+                        id="joinCompetence"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="Frontend">Frontend</option>
+                        <option value="Backend">Backend</option>
+                        <option value="Fullstack">Fullstack</option>
+                        <option value="QA">QA</option>
+                        <option value="Analyst">Analyst</option>
+                        <option value="Architect">Architect</option>
+                    </select>
+                </div>
+                
+                <button 
+                    id="joinRoomBtn"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                >
+                    Join Room
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/room.js"></script>
+</body>
+</html>
