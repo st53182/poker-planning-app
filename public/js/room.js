@@ -74,7 +74,7 @@ class PlanningPokerRoom {
         });
 
         this.socket.on('current_story_set', (data) => {
-            this.currentStory = data.story;
+            this.currentStory = this.stories.find(story => story.id === data.story_id);
             this.updateCurrentStory();
             this.resetVotingState();
         });
@@ -211,6 +211,10 @@ class PlanningPokerRoom {
         this.updateStoriesList();
         this.updateCurrentStory();
         this.generateVotingCards();
+        
+        setTimeout(() => {
+            this.updateStoriesList();
+        }, 100);
     }
 
     generateVotingCards() {
@@ -580,5 +584,35 @@ class PlanningPokerRoom {
 
 let room;
 document.addEventListener('DOMContentLoaded', () => {
-    room = new PlanningPokerRoom();
+    try {
+        room = new PlanningPokerRoom();
+        window.room = room;
+        console.log('Room initialized successfully:', room);
+    } catch (error) {
+        console.error('Failed to initialize room:', error);
+    }
 });
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!room) {
+            try {
+                room = new PlanningPokerRoom();
+                window.room = room;
+                console.log('Room initialized via fallback:', room);
+            } catch (error) {
+                console.error('Failed to initialize room via fallback:', error);
+            }
+        }
+    });
+} else {
+    if (!room) {
+        try {
+            room = new PlanningPokerRoom();
+            window.room = room;
+            console.log('Room initialized immediately:', room);
+        } catch (error) {
+            console.error('Failed to initialize room immediately:', error);
+        }
+    }
+}
