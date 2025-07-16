@@ -136,10 +136,12 @@ class PlanningPokerRoom {
         
         let name = urlParams.get('name');
         let competence = urlParams.get('competence');
-
-        if (!name || !competence) {
+        
+        const isCreator = localStorage.getItem('session_id') && urlParams.has('name') && urlParams.has('competence');
+        
+        if (!isCreator || !name || !competence) {
             document.getElementById('joinName').value = name || '';
-            document.getElementById('joinCompetence').value = competence || 'Fullstack';
+            document.getElementById('joinCompetence').value = competence || 'Frontend';
             document.getElementById('joinModal').classList.remove('hidden');
             
             document.getElementById('joinRoomBtn').onclick = () => {
