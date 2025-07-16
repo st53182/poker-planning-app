@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planning Poker - Create Room</title>
+    <title>Покер Планирования - Создать Комнату</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -15,56 +15,56 @@
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
             <div class="text-center mb-6">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Planning Poker</h1>
-                <p class="text-gray-600">Create a new estimation room for your team</p>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Покер Планирования</h1>
+                <p class="text-gray-600">Создайте новую комнату для оценки вашей команды</p>
             </div>
 
             <form id="createRoomForm" class="space-y-4">
                 <div>
                     <label for="roomName" class="block text-sm font-medium text-gray-700 mb-2">
-                        Room Name
+                        Название комнаты
                     </label>
                     <input 
                         type="text" 
                         id="roomName" 
                         name="roomName" 
                         required
-                        placeholder="Enter room name"
+                        placeholder="Введите название комнаты"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
 
                 <div>
                     <label for="estimationType" class="block text-sm font-medium text-gray-700 mb-2">
-                        Estimation Type
+                        Тип оценки
                     </label>
                     <select 
                         id="estimationType" 
                         name="estimationType" 
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="story_points">Story Points</option>
-                        <option value="hours">Hours</option>
+                        <option value="story_points">Стори поинты</option>
+                        <option value="hours">Часы</option>
                     </select>
                 </div>
 
                 <div>
                     <label for="creatorName" class="block text-sm font-medium text-gray-700 mb-2">
-                        Your Name
+                        Ваше имя
                     </label>
                     <input 
                         type="text" 
                         id="creatorName" 
                         name="creatorName" 
                         required
-                        placeholder="Enter your name"
+                        placeholder="Введите ваше имя"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
 
                 <div>
                     <label for="creatorCompetence" class="block text-sm font-medium text-gray-700 mb-2">
-                        Your Competence
+                        Ваша компетенция
                     </label>
                     <select 
                         id="creatorCompetence" 
@@ -75,8 +75,8 @@
                         <option value="Backend">Backend</option>
                         <option value="Fullstack">Fullstack</option>
                         <option value="QA">QA</option>
-                        <option value="Analyst">Analyst</option>
-                        <option value="Architect">Architect</option>
+                        <option value="Analyst">Аналитик</option>
+                        <option value="Architect">Архитектор</option>
                     </select>
                 </div>
 
@@ -84,13 +84,13 @@
                     type="submit" 
                     class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 >
-                    Create Room
+                    Создать комнату
                 </button>
             </form>
 
             <div id="loading" class="hidden text-center py-4">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <p class="mt-2 text-gray-600">Creating room...</p>
+                <p class="mt-2 text-gray-600">Создание комнаты...</p>
             </div>
 
             <div id="error" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
@@ -131,7 +131,7 @@
                     
                     window.location.href = `/room/${result.room_link}?name=${encodeURIComponent(data.creator_name)}&competence=${encodeURIComponent(data.creator_competence)}`;
                 } else {
-                    throw new Error(result.error || 'Failed to create room');
+                    throw new Error(result.error || 'Не удалось создать комнату');
                 }
             } catch (error) {
                 document.getElementById('loading').classList.add('hidden');

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planning Poker - Room</title>
+    <title>Покер Планирования - Комната</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -29,8 +29,8 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center py-4">
                 <div>
-                    <h1 id="roomName" class="text-2xl font-bold text-gray-900">Planning Room</h1>
-                    <p id="estimationType" class="text-sm text-gray-600">Estimation Type: Story Points</p>
+                    <h1 id="roomName" class="text-2xl font-bold text-gray-900">Комната Планирования</h1>
+                    <p id="estimationType" class="text-sm text-gray-600">Тип оценки: Стори поинты</p>
                 </div>
                 
                 <div class="flex items-center space-x-4">
@@ -38,13 +38,13 @@
                         id="copyLinkBtn" 
                         class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                     >
-                        Copy Room Link
+                        Скопировать ссылку
                     </button>
                     
                     <div id="userInfo" class="text-sm text-gray-600">
                         <span id="userName">Anonymous</span> (<span id="userCompetence">Fullstack</span>)
                         <span id="adminBadge" class="hidden ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                            Admin
+                            Админ
                         </span>
                     </div>
                 </div>
@@ -66,7 +66,7 @@
                         
                         <div class="flex items-center space-x-2">
                             <span id="votingStateBadge" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                                Not Started
+                                Не начато
                             </span>
                         </div>
                     </div>
@@ -76,14 +76,14 @@
                             id="startVotingBtn"
                             class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                         >
-                            Start Voting
+                            Начать голосование
                         </button>
                         
                         <button 
                             id="revealVotesBtn"
                             class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                         >
-                            Reveal Votes (<span id="voteCount">0</span>/<span id="participantCount">0</span>)
+                            Показать голоса (<span id="voteCount">0</span>/<span id="participantCount">0</span>)
                         </button>
                         
                         <div id="finalizeControls" class="hidden flex space-x-2">
@@ -91,26 +91,26 @@
                                 id="finalEstimateInput" 
                                 type="number" 
                                 step="0.5"
-                                placeholder="Final estimate"
+                                placeholder="Финальная оценка"
                                 class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <button 
                                 id="finalizeBtn"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
                             >
-                                Finalize
+                                Завершить
                             </button>
                             <button 
                                 id="voteAgainBtn"
                                 class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                             >
-                                Vote Again
+                                Голосовать снова
                             </button>
                         </div>
                     </div>
 
                     <div id="votingSection" class="hidden mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Cast Your Vote</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Ваш голос</h3>
                         <div id="votingCards" class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-11 gap-3 mb-4">
                         </div>
                         
@@ -118,19 +118,19 @@
                             id="submitVoteBtn"
                             class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                         >
-                            Submit Vote: <span id="selectedVoteValue"></span>
+                            Отправить голос: <span id="selectedVoteValue"></span>
                         </button>
                     </div>
 
                     <div id="revealedVotesSection" class="hidden mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Voting Results</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Результаты голосования</h3>
                         <div id="revealedVotes" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         </div>
                     </div>
 
                     <div id="similarStoriesSection" class="hidden mt-4 p-4 bg-blue-50 rounded-lg">
                         <h4 class="text-sm font-medium text-blue-900 mb-2">
-                            Similar stories estimated at <span id="similarVoteValue"></span> <span id="similarEstimationType">points</span>:
+                            Похожие истории с оценкой <span id="similarVoteValue"></span> <span id="similarEstimationType">поинтов</span>:
                         </h4>
                         <div id="similarStoriesList" class="space-y-1">
                         </div>
@@ -138,24 +138,24 @@
                 </div>
 
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Add New Story</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Добавить новую историю</h3>
                     
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Story Title</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Название истории</label>
                             <input 
                                 id="newStoryTitle"
                                 type="text" 
-                                placeholder="Enter story title"
+                                placeholder="Введите название истории"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Описание (необязательно)</label>
                             <textarea 
                                 id="newStoryDescription"
-                                placeholder="Enter story description"
+                                placeholder="Введите описание истории"
                                 rows="3"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             ></textarea>
@@ -165,26 +165,26 @@
                             id="createStoryBtn"
                             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
                         >
-                            Add Story
+                            Добавить историю
                         </button>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">All Stories</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Все истории</h3>
                     
                     <div id="storiesList" class="space-y-3">
-                        <p class="text-gray-500 text-center py-8">No stories yet. Add your first story above!</p>
+                        <p class="text-gray-500 text-center py-8">Пока нет историй. Добавьте первую историю выше!</p>
                     </div>
                 </div>
             </div>
 
             <div class="space-y-6">
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Participants (<span id="participantsCount">0</span>)</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Участники (<span id="participantsCount">0</span>)</h3>
                     
                     <div id="participantsList" class="space-y-3">
-                        <p class="text-gray-500 text-center py-8">No participants yet.</p>
+                        <p class="text-gray-500 text-center py-8">Пока нет участников.</p>
                     </div>
                 </div>
             </div>
@@ -193,26 +193,26 @@
 
     <div id="errorToast" class="hidden fixed bottom-4 right-4 p-4 bg-red-50 border border-red-200 rounded-lg shadow-lg">
         <p id="errorMessage" class="text-red-800"></p>
-        <button id="dismissError" class="mt-2 text-sm text-red-600 hover:text-red-800">Dismiss</button>
+        <button id="dismissError" class="mt-2 text-sm text-red-600 hover:text-red-800">Закрыть</button>
     </div>
 
     <div id="joinModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 class="text-xl font-bold text-gray-900 mb-4">Join Planning Room</h2>
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Присоединиться к комнате</h2>
             
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Name</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Ваше имя</label>
                     <input 
                         id="joinName"
                         type="text" 
-                        placeholder="Enter your name"
+                        placeholder="Введите ваше имя"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Competence</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Ваша компетенция</label>
                     <select 
                         id="joinCompetence"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -221,8 +221,8 @@
                         <option value="Backend">Backend</option>
                         <option value="Fullstack">Fullstack</option>
                         <option value="QA">QA</option>
-                        <option value="Analyst">Analyst</option>
-                        <option value="Architect">Architect</option>
+                        <option value="Analyst">Аналитик</option>
+                        <option value="Architect">Архитектор</option>
                     </select>
                 </div>
                 
@@ -230,7 +230,7 @@
                     id="joinRoomBtn"
                     class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 >
-                    Join Room
+                    Войти в комнату
                 </button>
             </div>
         </div>
