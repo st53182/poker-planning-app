@@ -638,6 +638,7 @@ class PlanningPokerRoom {
         
         if (token && user) {
             document.getElementById('dashboardBtn').classList.remove('hidden');
+            document.getElementById('authLinks').classList.add('hidden');
             
             if (this.isAdmin && this.roomData && !this.roomData.owner_id) {
                 const claimBtn = document.getElementById('claimRoomBtn');
@@ -652,6 +653,7 @@ class PlanningPokerRoom {
             }
         } else {
             document.getElementById('dashboardBtn').classList.add('hidden');
+            document.getElementById('authLinks').classList.remove('hidden');
             const claimBtn = document.getElementById('claimRoomBtn');
             if (claimBtn) {
                 claimBtn.classList.add('hidden');
