@@ -56,6 +56,13 @@ class PlanningPokerRoom {
         document.getElementById('newStoryTitle').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.createStory();
         });
+        
+        const claimBtn = document.getElementById('claimRoomBtn');
+        if (claimBtn) {
+            claimBtn.addEventListener('click', () => {
+                this.claimRoom();
+            });
+        }
     }
 
     initializeSocketListeners() {
@@ -186,12 +193,14 @@ class PlanningPokerRoom {
 
     performJoin(encryptedLink, name, competence) {
         const sessionId = localStorage.getItem('session_id') || this.generateSessionId();
+        const authToken = localStorage.getItem('auth_token');
         
         this.socket.emit('join_room_by_link', {
             encrypted_link: encryptedLink,
             name: name,
             competence: competence,
-            session_id: sessionId
+            session_id: sessionId,
+            auth_token: authToken
         });
     }
 
@@ -356,6 +365,38 @@ class PlanningPokerRoom {
             target_participant_id: participantId,
             participant_id: this.participant.id
         });
+    }
+
+    async claimRoom() {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            this.showError('Необходимо войти в систему для присвоения комнаты');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/claim-room', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    room_id: this.roomData.room_id
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showToast(result.message, 'success');
+                document.getElementById('claimRoomBtn').classList.add('hidden');
+            } else {
+                this.showError(result.error);
+            }
+        } catch (error) {
+            this.showError('Ошибка при присвоении комнаты: ' + error.message);
+        }
     }
 
     updateCurrentStory() {
@@ -524,12 +565,16 @@ class PlanningPokerRoom {
             const storyElement = document.createElement('div');
             const isCurrentStory = this.currentStory && story.id === this.currentStory.id;
             
-            storyElement.className = `p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+            const clickableClass = this.isAdmin ? 'cursor-pointer hover:bg-gray-50 hover:border-blue-300' : '';
+            const clickHint = this.isAdmin && !isCurrentStory ? 'border-l-4 border-l-blue-400' : '';
+            
+            storyElement.className = `p-4 border rounded-lg transition-colors ${clickableClass} ${clickHint} ${
                 isCurrentStory ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
             }`;
             
             if (this.isAdmin) {
                 storyElement.addEventListener('click', () => this.setCurrentStory(story.id));
+                storyElement.title = 'Нажмите, чтобы начать оценку этой истории';
             }
             
             const finalEstimateBadge = story.final_estimate 
@@ -550,11 +595,15 @@ class PlanningPokerRoom {
                 'completed': 'Завершено'
             };
             
+            const clickHintText = this.isAdmin && !isCurrentStory ? 
+                '<div class="text-xs text-blue-600 mt-1">👆 Нажмите для начала оценки</div>' : '';
+            
             storyElement.innerHTML = `
                 <div class="flex justify-between items-start">
                     <div>
                         <h4 class="font-medium text-gray-900">${story.title}</h4>
                         ${story.description ? `<p class="text-sm text-gray-600 mt-1">${story.description}</p>` : ''}
+                        ${clickHintText}
                     </div>
                     <div class="flex items-center space-x-2">
                         ${finalEstimateBadge}
@@ -584,8 +633,31 @@ class PlanningPokerRoom {
         
         if (token && user) {
             document.getElementById('dashboardBtn').classList.remove('hidden');
+            
+            if (this.isAdmin && this.roomData && !this.roomData.owner_id) {
+                const claimBtn = document.getElementById('claimRoomBtn');
+                if (claimBtn) {
+                    claimBtn.classList.remove('hidden');
+                }
+            } else {
+                const claimBtn = document.getElementById('claimRoomBtn');
+                if (claimBtn) {
+                    claimBtn.classList.add('hidden');
+                }
+            }
         } else {
             document.getElementById('dashboardBtn').classList.add('hidden');
+            const claimBtn = document.getElementById('claimRoomBtn');
+            if (claimBtn) {
+                claimBtn.classList.add('hidden');
+            }
+        }
+        
+        if (this.isAdmin && this.stories && this.stories.length > 0) {
+            const adminHint = document.getElementById('adminHint');
+            if (adminHint) {
+                adminHint.classList.remove('hidden');
+            }
         }
     }
 
