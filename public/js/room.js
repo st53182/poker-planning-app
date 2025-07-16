@@ -18,9 +18,9 @@ class PlanningPokerRoom {
         document.getElementById('copyLinkBtn').addEventListener('click', () => {
             const link = window.location.href;
             navigator.clipboard.writeText(link).then(() => {
-                this.showToast('Room link copied to clipboard!', 'success');
+                this.showToast('Ссылка на комнату скопирована!', 'success');
             }).catch(() => {
-                this.showToast(`Share this link: ${link}`, 'info');
+                this.showToast(`Поделитесь этой ссылкой: ${link}`, 'info');
             });
         });
 
@@ -147,7 +147,7 @@ class PlanningPokerRoom {
                 competence = document.getElementById('joinCompetence').value;
                 
                 if (!name) {
-                    this.showError('Please enter your name');
+                    this.showError('Пожалуйста, введите ваше имя');
                     return;
                 }
                 
@@ -155,6 +155,7 @@ class PlanningPokerRoom {
                 this.performJoin(encryptedLink, name, competence);
             };
         } else {
+            document.getElementById('joinModal').classList.add('hidden');
             this.performJoin(encryptedLink, name, competence);
         }
     }
@@ -184,8 +185,8 @@ class PlanningPokerRoom {
         this.currentStory = data.current_story;
         this.isAdmin = data.participant.is_admin;
 
-        document.getElementById('roomName').textContent = data.room_name || 'Planning Room';
-        document.getElementById('estimationType').textContent = `Estimation Type: ${data.estimation_type === 'story_points' ? 'Story Points' : 'Hours'}`;
+        document.getElementById('roomName').textContent = data.room_name || 'Комната Планирования';
+        document.getElementById('estimationType').textContent = `Тип оценки: ${data.estimation_type === 'story_points' ? 'Стори поинты' : 'Часы'}`;
         document.getElementById('userName').textContent = data.participant.name;
         document.getElementById('userCompetence').textContent = data.participant.competence;
         
@@ -203,7 +204,7 @@ class PlanningPokerRoom {
     generateVotingCards() {
         const votingCards = document.getElementById('votingCards');
         const values = this.roomData.estimation_type === 'story_points' 
-            ? [0.5, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+            ? [0.5, 1, 2, 3, 5, 8, 13, 21, 34]
             : [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64];
 
         votingCards.innerHTML = '';
@@ -247,7 +248,7 @@ class PlanningPokerRoom {
         const description = document.getElementById('newStoryDescription').value.trim();
         
         if (!title) {
-            this.showError('Please enter a story title');
+            this.showError('Пожалуйста, введите название истории');
             return;
         }
         
@@ -291,7 +292,7 @@ class PlanningPokerRoom {
         });
         
         document.getElementById('submitVoteBtn').classList.add('hidden');
-        this.showToast('Vote submitted!', 'success');
+        this.showToast('Голос отправлен!', 'success');
     }
 
     revealVotes() {
@@ -306,7 +307,7 @@ class PlanningPokerRoom {
         const finalEstimate = parseFloat(document.getElementById('finalEstimateInput').value);
         
         if (!finalEstimate) {
-            this.showError('Please enter a final estimate');
+            this.showError('Пожалуйста, введите финальную оценку');
             return;
         }
         
@@ -362,10 +363,10 @@ class PlanningPokerRoom {
         const finalizeControls = document.getElementById('finalizeControls');
         
         const stateLabels = {
-            'not_started': 'Not Started',
-            'voting': 'Voting',
-            'revealed': 'Revealed',
-            'completed': 'Completed'
+            'not_started': 'Не начато',
+            'voting': 'Голосование',
+            'revealed': 'Показано',
+            'completed': 'Завершено'
         };
         
         const stateClasses = {
@@ -427,13 +428,13 @@ class PlanningPokerRoom {
         }
         
         valueSpan.textContent = this.selectedVote;
-        typeSpan.textContent = this.roomData.estimation_type === 'story_points' ? 'points' : 'hours';
+        typeSpan.textContent = this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов';
         
         list.innerHTML = '';
         stories.slice(0, 5).forEach(story => {
             const storyElement = document.createElement('div');
             storyElement.className = 'text-sm text-blue-800';
-            storyElement.textContent = `"${story.title}" - ${story.points} ${this.roomData.estimation_type === 'story_points' ? 'pts' : 'hrs'}`;
+            storyElement.textContent = `"${story.title}" - ${story.points} ${this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов'}`;
             list.appendChild(storyElement);
         });
         
@@ -447,7 +448,7 @@ class PlanningPokerRoom {
         count.textContent = this.participants.length;
         
         if (this.participants.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-8">No participants yet.</p>';
+            container.innerHTML = '<p class="text-gray-500 text-center py-8">Пока нет участников.</p>';
             return;
         }
         
@@ -458,11 +459,11 @@ class PlanningPokerRoom {
             participantElement.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
             
             const adminBadge = participant.is_admin 
-                ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Admin</span>'
+                ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Админ</span>'
                 : '';
             
             const makeAdminBtn = this.isAdmin && !participant.is_admin && participant.id !== this.participant.id
-                ? `<button onclick="room.makeAdmin('${participant.id}')" class="text-xs text-blue-600 hover:text-blue-800">Make Admin</button>`
+                ? `<button onclick="room.makeAdmin('${participant.id}')" class="text-xs text-blue-600 hover:text-blue-800">Сделать админом</button>`
                 : '';
             
             participantElement.innerHTML = `
@@ -484,7 +485,7 @@ class PlanningPokerRoom {
         const container = document.getElementById('storiesList');
         
         if (this.stories.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-8">No stories yet. Add your first story above!</p>';
+            container.innerHTML = '<p class="text-gray-500 text-center py-8">Пока нет историй. Добавьте первую историю выше!</p>';
             return;
         }
         
@@ -503,7 +504,7 @@ class PlanningPokerRoom {
             }
             
             const finalEstimateBadge = story.final_estimate 
-                ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">${story.final_estimate} ${this.roomData.estimation_type === 'story_points' ? 'pts' : 'hrs'}</span>`
+                ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">${story.final_estimate} ${this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов'}</span>`
                 : '';
             
             const stateClasses = {
@@ -514,10 +515,10 @@ class PlanningPokerRoom {
             };
             
             const stateLabels = {
-                'not_started': 'Not Started',
-                'voting': 'Voting',
-                'revealed': 'Revealed',
-                'completed': 'Completed'
+                'not_started': 'Не начато',
+                'voting': 'Голосование',
+                'revealed': 'Показано',
+                'completed': 'Завершено'
             };
             
             storyElement.innerHTML = `

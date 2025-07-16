@@ -75,7 +75,7 @@ function createRoom(name, estimationType, creatorName, creatorCompetence) {
 function joinRoom(encryptedLink, name, competence, sessionId) {
   const room = rooms.get(encryptedLink);
   if (!room) {
-    throw new Error('Room not found');
+    throw new Error('Комната не найдена');
   }
   
   let participant = Array.from(participants.values()).find(p => 
@@ -118,7 +118,7 @@ function createStory(roomId, title, description, participantId) {
   const participant = participants.get(participantId);
   
   if (!room || !participant || participant.room_id !== roomId) {
-    throw new Error('Invalid room or participant');
+    throw new Error('Неверная комната или участник');
   }
   
   const story = {
@@ -168,7 +168,7 @@ app.get('/api/docs', (req, res) => {
     const spec = yaml.load(openApiSpec);
     res.json(spec);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to load API documentation' });
+    res.status(500).json({ error: 'Не удалось загрузить документацию API' });
   }
 });
 
@@ -265,7 +265,7 @@ io.on('connection', (socket) => {
       const participant = participants.get(participant_id);
       
       if (!room || !participant || !participant.is_admin) {
-        throw new Error('Unauthorized');
+        throw new Error('Нет доступа');
       }
       
       room.current_story_id = story_id;
@@ -284,7 +284,7 @@ io.on('connection', (socket) => {
       const story = stories.get(story_id);
       
       if (!participant || !participant.is_admin || !story) {
-        throw new Error('Unauthorized');
+        throw new Error('Нет доступа');
       }
       
       story.voting_state = 'voting';
@@ -303,7 +303,7 @@ io.on('connection', (socket) => {
       const story = stories.get(story_id);
       
       if (!participant || !story || story.voting_state !== 'voting') {
-        throw new Error('Invalid vote');
+        throw new Error('Неверный голос');
       }
       
       if (!votes.has(story_id)) {
@@ -334,7 +334,7 @@ io.on('connection', (socket) => {
       const story = stories.get(story_id);
       
       if (!participant || !participant.is_admin || !story) {
-        throw new Error('Unauthorized');
+        throw new Error('Нет доступа');
       }
       
       story.voting_state = 'revealed';
@@ -354,7 +354,7 @@ io.on('connection', (socket) => {
       const story = stories.get(story_id);
       
       if (!participant || !participant.is_admin || !story) {
-        throw new Error('Unauthorized');
+        throw new Error('Нет доступа');
       }
       
       story.voting_state = 'completed';
@@ -384,7 +384,7 @@ io.on('connection', (socket) => {
       const targetParticipant = participants.get(target_participant_id);
       
       if (!participant || !participant.is_admin || !targetParticipant) {
-        throw new Error('Unauthorized');
+        throw new Error('Нет доступа');
       }
       
       targetParticipant.is_admin = true;
