@@ -16,11 +16,11 @@ class PlanningPokerRoom {
 
     initializeEventListeners() {
         document.getElementById('copyLinkBtn').addEventListener('click', () => {
-            const link = window.location.href;
-            navigator.clipboard.writeText(link).then(() => {
+            const baseUrl = window.location.origin + window.location.pathname;
+            navigator.clipboard.writeText(baseUrl).then(() => {
                 this.showToast('Ссылка на комнату скопирована!', 'success');
             }).catch(() => {
-                this.showToast(`Поделитесь этой ссылкой: ${link}`, 'info');
+                this.showToast(`Поделитесь этой ссылкой: ${baseUrl}`, 'info');
             });
         });
 
@@ -140,8 +140,8 @@ class PlanningPokerRoom {
         const isCreator = localStorage.getItem('session_id') && urlParams.has('name') && urlParams.has('competence');
         
         if (!isCreator || !name || !competence) {
-            document.getElementById('joinName').value = name || '';
-            document.getElementById('joinCompetence').value = competence || 'Frontend';
+            document.getElementById('joinName').value = '';
+            document.getElementById('joinCompetence').value = 'Frontend';
             document.getElementById('joinModal').classList.remove('hidden');
             
             document.getElementById('joinRoomBtn').onclick = () => {
