@@ -280,13 +280,17 @@ app.post('/api/claim-room', authenticateToken, async (req, res) => {
   try {
     const { room_id } = req.body;
     
+    console.log('Claim room request:', { room_id, userId: req.user.userId });
+    
     if (!room_id) {
       return res.status(400).json({ error: 'ID комнаты обязателен' });
     }
     
     const result = await claimRoom(room_id, req.user.userId);
+    console.log('Claim room success:', result);
     res.json({ success: true, message: result.message });
   } catch (error) {
+    console.log('Claim room error:', error.message);
     res.status(400).json({ success: false, error: error.message });
   }
 });

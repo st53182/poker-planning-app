@@ -470,10 +470,14 @@ async function makeParticipantAdmin(participantId) {
 async function claimRoom(roomId, userId) {
   const client = await pool.connect();
   try {
+    console.log('claimRoom called with:', { roomId, userId });
+    
     const roomResult = await client.query(
       'SELECT id, owner_id FROM rooms WHERE id = $1',
       [roomId]
     );
+    
+    console.log('Room query result:', roomResult.rows);
     
     if (roomResult.rows.length === 0) {
       throw new Error('Комната не найдена');
@@ -484,10 +488,18 @@ async function claimRoom(roomId, userId) {
       throw new Error('Комната уже принадлежит другому пользователю');
     }
     
+    const allParticipantsResult = await client.query(
+      'SELECT id, name, competence, is_admin, user_id FROM participants WHERE room_id = $1',
+      [roomId]
+    );
+    console.log('All participants in room:', allParticipantsResult.rows);
+    
     const participantResult = await client.query(
       'SELECT id, is_admin FROM participants WHERE room_id = $1 AND user_id = $2',
       [roomId, userId]
     );
+    
+    console.log('Participant query result:', participantResult.rows);
     
     if (participantResult.rows.length === 0) {
       throw new Error('Вы не являетесь участником этой комнаты');
@@ -503,6 +515,7 @@ async function claimRoom(roomId, userId) {
       [userId, roomId]
     );
     
+    console.log('Room claimed successfully');
     return { success: true, message: 'Комната успешно присвоена' };
   } finally {
     client.release();
