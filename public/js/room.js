@@ -580,17 +580,35 @@ class PlanningPokerRoom {
 
 let room;
 document.addEventListener('DOMContentLoaded', () => {
-    room = new PlanningPokerRoom();
+    try {
+        room = new PlanningPokerRoom();
+        window.room = room;
+        console.log('Room initialized successfully:', room);
+    } catch (error) {
+        console.error('Failed to initialize room:', error);
+    }
 });
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         if (!room) {
-            room = new PlanningPokerRoom();
+            try {
+                room = new PlanningPokerRoom();
+                window.room = room;
+                console.log('Room initialized via fallback:', room);
+            } catch (error) {
+                console.error('Failed to initialize room via fallback:', error);
+            }
         }
     });
 } else {
     if (!room) {
-        room = new PlanningPokerRoom();
+        try {
+            room = new PlanningPokerRoom();
+            window.room = room;
+            console.log('Room initialized immediately:', room);
+        } catch (error) {
+            console.error('Failed to initialize room immediately:', error);
+        }
     }
 }
