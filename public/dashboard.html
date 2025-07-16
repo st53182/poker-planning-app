@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои комнаты - Planning Poker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <a href="/" class="text-xl font-bold text-blue-600">Planning Poker Online</a>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                        Анализ уровня зрелости команды
+                    </a>
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                        Мотивация по DISC
+                    </a>
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                        Разрешение конфликтов
+                    </a>
+                    <div class="flex items-center space-x-4">
+                        <span id="userName" class="text-gray-700"></span>
+                        <button id="logoutBtn" class="text-gray-600 hover:text-red-600 transition-colors">Выйти</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-3xl font-bold text-gray-900">Мои комнаты</h1>
+                <a href="/" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                    Создать новую комнату
+                </a>
+            </div>
+
+            <div id="loading" class="text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p class="mt-2 text-gray-600">Загрузка комнат...</p>
+            </div>
+
+            <div id="roomsContainer" class="hidden">
+                <div id="roomsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+                
+                <div id="noRooms" class="hidden text-center py-12">
+                    <div class="text-gray-400 mb-4">
+                        <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-2 0h-4m-2 0h-4m-2 0H3" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Пока нет комнат</h3>
+                    <p class="text-gray-600 mb-4">Создайте свою первую комнату для планирования</p>
+                    <a href="/" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                        Создать комнату
+                    </a>
+                </div>
+            </div>
+
+            <div id="error" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                <p class="text-red-800" id="errorMessage"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            const user = localStorage.getItem('user_info');
+            
+            if (!token || !user) {
+                window.location.href = '/login';
+                return false;
+            }
+            
+            const userInfo = JSON.parse(user);
+            document.getElementById('userName').textContent = userInfo.name;
+            return token;
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_info');
+            window.location.href = '/';
+        });
+
+        async function loadRooms() {
+            const token = checkAuth();
+            if (!token) return;
+
+            try {
+                const response = await fetch('/api/user/rooms', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayRooms(result.rooms);
+                } else {
+                    throw new Error(result.error || 'Ошибка загрузки комнат');
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = error.message;
+            }
+        }
+
+        function displayRooms(rooms) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('roomsContainer').classList.remove('hidden');
+
+            if (rooms.length === 0) {
+                document.getElementById('noRooms').classList.remove('hidden');
+                return;
+            }
+
+            const roomsList = document.getElementById('roomsList');
+            roomsList.innerHTML = '';
+
+            rooms.forEach(room => {
+                const roomCard = document.createElement('div');
+                roomCard.className = 'bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow';
+                
+                const estimationType = room.estimation_type === 'story_points' ? 'Стори поинты' : 'Часы';
+                const createdDate = new Date(room.created_at).toLocaleDateString('ru-RU');
+                
+                roomCard.innerHTML = `
+                    <div class="flex items-start justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900 truncate">${escapeHtml(room.name)}</h3>
+                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${estimationType}</span>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4">Создана: ${createdDate}</p>
+                    <div class="flex space-x-2">
+                        <a href="/room/${room.encrypted_link}" 
+                           class="flex-1 bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm">
+                            Войти как админ
+                        </a>
+                        <button onclick="copyRoomLink('${room.encrypted_link}')" 
+                                class="bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 transition-colors text-sm">
+                            Копировать ссылку
+                        </button>
+                    </div>
+                `;
+                
+                roomsList.appendChild(roomCard);
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function copyRoomLink(encryptedLink) {
+            const url = `${window.location.origin}/room/${encryptedLink}`;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('Ссылка скопирована в буфер обмена');
+            }).catch(() => {
+                showToast('Не удалось скопировать ссылку', 'error');
+            });
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' :
+                'bg-red-50 border border-red-200 text-red-800'
+            }`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        loadRooms();
+    </script>
+</body>
+</html>

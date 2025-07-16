@@ -9,13 +9,23 @@ async function initializeDatabase() {
   const client = await pool.connect();
   try {
     await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+      );
+      
       CREATE TABLE IF NOT EXISTS rooms (
         id UUID PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         estimation_type VARCHAR(50) NOT NULL,
         encrypted_link VARCHAR(32) UNIQUE NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        current_story_id UUID
+        current_story_id UUID,
+        owner_id UUID REFERENCES users(id) ON DELETE SET NULL
       );
       
       CREATE TABLE IF NOT EXISTS participants (
@@ -25,6 +35,7 @@ async function initializeDatabase() {
         competence VARCHAR(50) NOT NULL,
         is_admin BOOLEAN DEFAULT FALSE,
         session_id VARCHAR(255),
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       
@@ -50,9 +61,12 @@ async function initializeDatabase() {
         UNIQUE(story_id, participant_id)
       );
       
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_rooms_encrypted_link ON rooms(encrypted_link);
+      CREATE INDEX IF NOT EXISTS idx_rooms_owner_id ON rooms(owner_id);
       CREATE INDEX IF NOT EXISTS idx_participants_room_id ON participants(room_id);
       CREATE INDEX IF NOT EXISTS idx_participants_session_id ON participants(session_id);
+      CREATE INDEX IF NOT EXISTS idx_participants_user_id ON participants(user_id);
       CREATE INDEX IF NOT EXISTS idx_stories_room_id ON stories(room_id);
       CREATE INDEX IF NOT EXISTS idx_votes_story_id ON votes(story_id);
     `);
@@ -61,7 +75,7 @@ async function initializeDatabase() {
   }
 }
 
-async function createRoom(name, estimationType, creatorName, creatorCompetence) {
+async function createRoom(name, estimationType, creatorName, creatorCompetence, ownerId = null) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -70,14 +84,14 @@ async function createRoom(name, estimationType, creatorName, creatorCompetence) 
     const encryptedLink = require('crypto').randomBytes(16).toString('hex');
     
     await client.query(
-      'INSERT INTO rooms (id, name, estimation_type, encrypted_link) VALUES ($1, $2, $3, $4)',
-      [roomId, name, estimationType, encryptedLink]
+      'INSERT INTO rooms (id, name, estimation_type, encrypted_link, owner_id) VALUES ($1, $2, $3, $4, $5)',
+      [roomId, name, estimationType, encryptedLink, ownerId]
     );
     
     const participantId = require('uuid').v4();
     await client.query(
-      'INSERT INTO participants (id, room_id, name, competence, is_admin) VALUES ($1, $2, $3, $4, $5)',
-      [participantId, roomId, creatorName, creatorCompetence, true]
+      'INSERT INTO participants (id, room_id, name, competence, is_admin, user_id) VALUES ($1, $2, $3, $4, $5, $6)',
+      [participantId, roomId, creatorName, creatorCompetence, true, ownerId]
     );
     
     await client.query('COMMIT');
@@ -89,6 +103,7 @@ async function createRoom(name, estimationType, creatorName, creatorCompetence) 
       encrypted_link: encryptedLink,
       created_at: new Date(),
       current_story_id: null,
+      owner_id: ownerId,
       participants: [],
       stories: []
     };
@@ -100,6 +115,7 @@ async function createRoom(name, estimationType, creatorName, creatorCompetence) 
       competence: creatorCompetence,
       is_admin: true,
       session_id: null,
+      user_id: ownerId,
       joined_at: new Date()
     };
     
@@ -358,6 +374,71 @@ async function clearStoryVotes(storyId) {
   }
 }
 
+async function createUser(email, passwordHash, name) {
+  const client = await pool.connect();
+  try {
+    const userId = require('uuid').v4();
+    await client.query(
+      'INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
+      [userId, email, passwordHash, name]
+    );
+    
+    return {
+      id: userId,
+      email: email,
+      name: name,
+      created_at: new Date()
+    };
+  } finally {
+    client.release();
+  }
+}
+
+async function getUserByEmail(email) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query('SELECT * FROM users WHERE email = $1', [email]);
+    return result.rows[0] || null;
+  } finally {
+    client.release();
+  }
+}
+
+async function getUserById(userId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query('SELECT id, email, name, created_at, last_login FROM users WHERE id = $1', [userId]);
+    return result.rows[0] || null;
+  } finally {
+    client.release();
+  }
+}
+
+async function getUserRooms(userId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'SELECT id, name, estimation_type, encrypted_link, created_at FROM rooms WHERE owner_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+async function updateUserLastLogin(userId) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+      [userId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = { 
   pool, 
   initializeDatabase, 
@@ -372,5 +453,10 @@ module.exports = {
   updateRoomCurrentStory,
   makeParticipantAdmin,
   clearStoryVotes,
-  getRoomById
+  getRoomById,
+  createUser,
+  getUserByEmail,
+  getUserById,
+  getUserRooms,
+  updateUserLastLogin
 };

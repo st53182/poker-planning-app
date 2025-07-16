@@ -9,6 +9,10 @@ const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const yaml = require('js-yaml');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const session = require('express-session');
+const rateLimit = require('express-rate-limit');
 const { 
   initializeDatabase, 
   createRoom, 
@@ -22,7 +26,12 @@ const {
   updateRoomCurrentStory,
   makeParticipantAdmin,
   clearStoryVotes,
-  getRoomById
+  getRoomById,
+  createUser,
+  getUserByEmail,
+  getUserById,
+  getUserRooms,
+  updateUserLastLogin
 } = require('./database');
 
 const app = express();
@@ -35,8 +44,17 @@ const io = socketIo(server, {
 });
 
 const PORT = process.env.PORT || 10000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 initializeDatabase().catch(console.error);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Слишком много попыток. Попробуйте через 15 минут.' }
+});
+
+const captchaSessions = new Map();
 
 app.use(helmet({
   contentSecurityPolicy: false
@@ -44,7 +62,30 @@ app.use(helmet({
 app.use(compression());
 app.use(cors());
 app.use(express.json());
+app.use(session({
+  secret: JWT_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+}));
 app.use(express.static(path.join(__dirname, 'public')));
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Токен доступа отсутствует' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Недействительный токен' });
+    }
+    req.user = user;
+    next();
+  });
+}
 
 
 app.get('/', (req, res) => {
@@ -53,6 +94,18 @@ app.get('/', (req, res) => {
 
 app.get('/room/:link', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'room.html'));
+});
+
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'register.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 app.get('/api/docs', (req, res) => {
@@ -91,10 +144,118 @@ app.get('/docs', (req, res) => {
   `);
 });
 
+app.get('/api/captcha', (req, res) => {
+  const num1 = Math.floor(Math.random() * 10) + 1;
+  const num2 = Math.floor(Math.random() * 10) + 1;
+  const answer = num1 + num2;
+  const sessionId = crypto.randomBytes(16).toString('hex');
+  
+  captchaSessions.set(sessionId, { answer, expires: Date.now() + 5 * 60 * 1000 });
+  
+  res.json({
+    question: `Сколько будет ${num1} + ${num2}?`,
+    sessionId: sessionId
+  });
+});
+
+app.post('/api/register', authLimiter, async (req, res) => {
+  try {
+    const { email, password, name, captchaAnswer, captchaSessionId } = req.body;
+    
+    if (!email || !password || !name || !captchaAnswer || !captchaSessionId) {
+      return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
+    }
+    
+    const captchaSession = captchaSessions.get(captchaSessionId);
+    if (!captchaSession || captchaSession.expires < Date.now()) {
+      return res.status(400).json({ error: 'CAPTCHA истекла. Обновите страницу.' });
+    }
+    
+    if (parseInt(captchaAnswer) !== captchaSession.answer) {
+      return res.status(400).json({ error: 'Неверный ответ на CAPTCHA' });
+    }
+    
+    captchaSessions.delete(captchaSessionId);
+    
+    const existingUser = await getUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+    }
+    
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await createUser(email, passwordHash, name);
+    
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({
+      success: true,
+      token: token,
+      user: { id: user.id, email: user.email, name: user.name }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/login', authLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email и пароль обязательны' });
+    }
+    
+    const user = await getUserByEmail(email);
+    if (!user) {
+      return res.status(400).json({ error: 'Неверный email или пароль' });
+    }
+    
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Неверный email или пароль' });
+    }
+    
+    await updateUserLastLogin(user.id);
+    
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({
+      success: true,
+      token: token,
+      user: { id: user.id, email: user.email, name: user.name }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/user/rooms', authenticateToken, async (req, res) => {
+  try {
+    const rooms = await getUserRooms(req.user.userId);
+    res.json({ success: true, rooms: rooms });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/create-room', async (req, res) => {
   try {
     const { name, estimation_type, creator_name, creator_competence } = req.body;
-    const { room, participant } = await createRoom(name, estimation_type, creator_name, creator_competence);
+    
+    let ownerId = null;
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        ownerId = decoded.userId;
+      } catch (err) {
+        
+      }
+    }
+    
+    const { room, participant } = await createRoom(name, estimation_type, creator_name, creator_competence, ownerId);
     
     res.json({
       success: true,
