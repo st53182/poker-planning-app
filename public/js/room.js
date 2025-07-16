@@ -74,7 +74,7 @@ class PlanningPokerRoom {
         });
 
         this.socket.on('current_story_set', (data) => {
-            this.currentStory = data.story;
+            this.currentStory = this.stories.find(story => story.id === data.story_id);
             this.updateCurrentStory();
             this.resetVotingState();
         });
@@ -582,3 +582,15 @@ let room;
 document.addEventListener('DOMContentLoaded', () => {
     room = new PlanningPokerRoom();
 });
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!room) {
+            room = new PlanningPokerRoom();
+        }
+    });
+} else {
+    if (!room) {
+        room = new PlanningPokerRoom();
+    }
+}
