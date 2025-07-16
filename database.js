@@ -6,8 +6,14 @@ const pool = new Pool({
 });
 
 async function initializeDatabase() {
-  const client = await pool.connect();
+  console.log('Starting database initialization...');
+  
+  let client;
   try {
+    client = await pool.connect();
+    console.log('Database connection established successfully');
+    
+    console.log('Creating users table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY,
@@ -17,7 +23,11 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP
       );
-      
+    `);
+    console.log('Users table created successfully');
+    
+    console.log('Creating rooms table...');
+    await client.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id UUID PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -27,7 +37,11 @@ async function initializeDatabase() {
         current_story_id UUID,
         owner_id UUID REFERENCES users(id) ON DELETE SET NULL
       );
-      
+    `);
+    console.log('Rooms table created successfully');
+    
+    console.log('Creating participants table...');
+    await client.query(`
       CREATE TABLE IF NOT EXISTS participants (
         id UUID PRIMARY KEY,
         room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
@@ -38,7 +52,11 @@ async function initializeDatabase() {
         user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      
+    `);
+    console.log('Participants table created successfully');
+    
+    console.log('Creating stories table...');
+    await client.query(`
       CREATE TABLE IF NOT EXISTS stories (
         id UUID PRIMARY KEY,
         room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
@@ -49,7 +67,11 @@ async function initializeDatabase() {
         created_by UUID REFERENCES participants(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      
+    `);
+    console.log('Stories table created successfully');
+    
+    console.log('Creating votes table...');
+    await client.query(`
       CREATE TABLE IF NOT EXISTS votes (
         id UUID PRIMARY KEY,
         story_id UUID REFERENCES stories(id) ON DELETE CASCADE,
@@ -60,7 +82,11 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(story_id, participant_id)
       );
-      
+    `);
+    console.log('Votes table created successfully');
+    
+    console.log('Creating indexes...');
+    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_rooms_encrypted_link ON rooms(encrypted_link);
       CREATE INDEX IF NOT EXISTS idx_rooms_owner_id ON rooms(owner_id);
@@ -70,8 +96,47 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_stories_room_id ON stories(room_id);
       CREATE INDEX IF NOT EXISTS idx_votes_story_id ON votes(story_id);
     `);
+    console.log('Indexes created successfully');
+    
+    const result = await client.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name IN ('users', 'rooms', 'participants', 'stories', 'votes')
+      ORDER BY table_name;
+    `);
+    
+    const tableNames = result.rows.map(row => row.table_name);
+    console.log('Verified tables exist:', tableNames);
+    
+    if (tableNames.length !== 5) {
+      throw new Error(`Expected 5 tables, but found ${tableNames.length}: ${tableNames.join(', ')}`);
+    }
+    
+    console.log('Database initialization completed successfully!');
+    
+  } catch (error) {
+    console.error('Database initialization failed:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      position: error.position,
+      internalPosition: error.internalPosition,
+      internalQuery: error.internalQuery,
+      where: error.where,
+      schema: error.schema,
+      table: error.table,
+      column: error.column,
+      dataType: error.dataType,
+      constraint: error.constraint
+    });
+    throw error;
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 }
 
