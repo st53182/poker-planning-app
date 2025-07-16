@@ -46,7 +46,14 @@ const io = socketIo(server, {
 const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-initializeDatabase().catch(console.error);
+initializeDatabase()
+  .then(() => {
+    console.log('Database initialization completed successfully');
+  })
+  .catch((error) => {
+    console.error('CRITICAL: Database initialization failed!', error);
+    console.error('Server will continue running but authentication features may not work');
+  });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
