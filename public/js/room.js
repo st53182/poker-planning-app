@@ -134,6 +134,18 @@ class PlanningPokerRoom {
         let name = urlParams.get('name');
         let competence = urlParams.get('competence');
         
+        const authToken = localStorage.getItem('auth_token');
+        const userInfo = localStorage.getItem('user_info');
+        
+        if (authToken && userInfo && !name && !competence) {
+            const user = JSON.parse(userInfo);
+            name = user.name;
+            competence = 'Fullstack'; // Default competence for authenticated users
+            document.getElementById('joinModal').classList.add('hidden');
+            this.performJoin(encryptedLink, name, competence);
+            return;
+        }
+        
         const storedName = localStorage.getItem('participant_name');
         const storedCompetence = localStorage.getItem('participant_competence');
         const sessionId = localStorage.getItem('session_id');
@@ -211,6 +223,7 @@ class PlanningPokerRoom {
         this.updateStoriesList();
         this.updateCurrentStory();
         this.generateVotingCards();
+        this.checkAuthenticationStatus();
         
         setTimeout(() => {
             this.updateStoriesList();
@@ -563,6 +576,17 @@ class PlanningPokerRoom {
         setTimeout(() => {
             document.getElementById('errorToast').classList.add('hidden');
         }, 5000);
+    }
+
+    checkAuthenticationStatus() {
+        const token = localStorage.getItem('auth_token');
+        const user = localStorage.getItem('user_info');
+        
+        if (token && user) {
+            document.getElementById('dashboardBtn').classList.remove('hidden');
+        } else {
+            document.getElementById('dashboardBtn').classList.add('hidden');
+        }
     }
 
     showToast(message, type = 'info') {
