@@ -31,7 +31,8 @@ const {
   getUserByEmail,
   getUserById,
   getUserRooms,
-  updateUserLastLogin
+  updateUserLastLogin,
+  claimRoom
 } = require('./database');
 
 const app = express();
@@ -275,13 +276,43 @@ app.post('/api/create-room', async (req, res) => {
   }
 });
 
+app.post('/api/claim-room', authenticateToken, async (req, res) => {
+  try {
+    const { room_id } = req.body;
+    
+    console.log('Claim room request:', { room_id, userId: req.user.userId });
+    
+    if (!room_id) {
+      return res.status(400).json({ error: 'ID комнаты обязателен' });
+    }
+    
+    const result = await claimRoom(room_id, req.user.userId);
+    console.log('Claim room success:', result);
+    res.json({ success: true, message: result.message });
+  } catch (error) {
+    console.log('Claim room error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
   
   socket.on('join_room_by_link', async (data) => {
     try {
-      const { encrypted_link, name, competence, session_id } = data;
-      const { room, participant } = await joinRoom(encrypted_link, name, competence, session_id);
+      const { encrypted_link, name, competence, session_id, auth_token } = data;
+      
+      let userId = null;
+      if (auth_token) {
+        try {
+          const decoded = jwt.verify(auth_token, JWT_SECRET);
+          userId = decoded.userId;
+        } catch (jwtError) {
+          console.log('Invalid JWT token in socket join_room_by_link:', jwtError.message);
+        }
+      }
+      
+      const { room, participant } = await joinRoom(encrypted_link, name, competence, session_id, userId);
       
       socket.join(room.id);
       socket.participant_id = participant.id;
@@ -293,6 +324,7 @@ io.on('connection', (socket) => {
         room_id: room.id,
         room_name: room.name,
         estimation_type: room.estimation_type,
+        owner_id: room.owner_id,
         participant: participant,
         participants: room.participants,
         stories: room.stories,

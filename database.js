@@ -229,7 +229,7 @@ async function createRoom(name, estimationType, creatorName, creatorCompetence, 
   }
 }
 
-async function joinRoom(encryptedLink, name, competence, sessionId) {
+async function joinRoom(encryptedLink, name, competence, sessionId, userId = null) {
   const client = await pool.connect();
   try {
     const roomResult = await client.query(
@@ -258,16 +258,17 @@ async function joinRoom(encryptedLink, name, competence, sessionId) {
       
       if (existingCreatorResult.rows.length > 0) {
         await client.query(
-          'UPDATE participants SET session_id = $1 WHERE id = $2',
-          [sessionId, existingCreatorResult.rows[0].id]
+          'UPDATE participants SET session_id = $1, user_id = $2 WHERE id = $3',
+          [sessionId, userId, existingCreatorResult.rows[0].id]
         );
         participant = existingCreatorResult.rows[0];
         participant.session_id = sessionId;
+        participant.user_id = userId;
       } else {
         const participantId = require('uuid').v4();
         await client.query(
-          'INSERT INTO participants (id, room_id, name, competence, is_admin, session_id) VALUES ($1, $2, $3, $4, $5, $6)',
-          [participantId, room.id, name, competence, false, sessionId]
+          'INSERT INTO participants (id, room_id, name, competence, is_admin, session_id, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [participantId, room.id, name, competence, false, sessionId, userId]
         );
         
         participant = {
@@ -277,17 +278,19 @@ async function joinRoom(encryptedLink, name, competence, sessionId) {
           competence: competence,
           is_admin: false,
           session_id: sessionId,
+          user_id: userId,
           joined_at: new Date()
         };
       }
     } else {
       participant = participantResult.rows[0];
       await client.query(
-        'UPDATE participants SET name = $1, competence = $2 WHERE id = $3',
-        [name, competence, participant.id]
+        'UPDATE participants SET name = $1, competence = $2, user_id = $3 WHERE id = $4',
+        [name, competence, userId, participant.id]
       );
       participant.name = name;
       participant.competence = competence;
+      participant.user_id = userId;
     }
     
     const participantsResult = await client.query(
@@ -464,6 +467,61 @@ async function makeParticipantAdmin(participantId) {
   }
 }
 
+async function claimRoom(roomId, userId) {
+  const client = await pool.connect();
+  try {
+    console.log('claimRoom called with:', { roomId, userId });
+    
+    const roomResult = await client.query(
+      'SELECT id, owner_id FROM rooms WHERE id = $1',
+      [roomId]
+    );
+    
+    console.log('Room query result:', roomResult.rows);
+    
+    if (roomResult.rows.length === 0) {
+      throw new Error('Комната не найдена');
+    }
+    
+    const room = roomResult.rows[0];
+    if (room.owner_id !== null) {
+      throw new Error('Комната уже принадлежит другому пользователю');
+    }
+    
+    const allParticipantsResult = await client.query(
+      'SELECT id, name, competence, is_admin, user_id FROM participants WHERE room_id = $1',
+      [roomId]
+    );
+    console.log('All participants in room:', allParticipantsResult.rows);
+    
+    const participantResult = await client.query(
+      'SELECT id, is_admin FROM participants WHERE room_id = $1 AND user_id = $2',
+      [roomId, userId]
+    );
+    
+    console.log('Participant query result:', participantResult.rows);
+    
+    if (participantResult.rows.length === 0) {
+      throw new Error('Вы не являетесь участником этой комнаты');
+    }
+    
+    const participant = participantResult.rows[0];
+    if (!participant.is_admin) {
+      throw new Error('Только администраторы могут присвоить комнату');
+    }
+    
+    await client.query(
+      'UPDATE rooms SET owner_id = $1 WHERE id = $2',
+      [userId, roomId]
+    );
+    
+    console.log('Room claimed successfully');
+    return { success: true, message: 'Комната успешно присвоена' };
+  } finally {
+    client.release();
+  }
+}
+
 async function clearStoryVotes(storyId) {
   const client = await pool.connect();
   try {
@@ -557,5 +615,6 @@ module.exports = {
   getUserByEmail,
   getUserById,
   getUserRooms,
-  updateUserLastLogin
+  updateUserLastLogin,
+  claimRoom
 };
