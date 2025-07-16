@@ -40,6 +40,24 @@ async function initializeDatabase() {
     `);
     console.log('Rooms table created successfully');
     
+    console.log('Checking for missing columns in existing tables...');
+    
+    const roomsColumnsResult = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'rooms' AND column_name = 'owner_id';
+    `);
+    
+    if (roomsColumnsResult.rows.length === 0) {
+      console.log('Adding missing owner_id column to rooms table...');
+      await client.query(`
+        ALTER TABLE rooms ADD COLUMN owner_id UUID REFERENCES users(id) ON DELETE SET NULL;
+      `);
+      console.log('Added owner_id column to rooms table successfully');
+    } else {
+      console.log('owner_id column already exists in rooms table');
+    }
+    
     console.log('Creating participants table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS participants (
@@ -54,6 +72,22 @@ async function initializeDatabase() {
       );
     `);
     console.log('Participants table created successfully');
+    
+    const participantsColumnsResult = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'participants' AND column_name = 'user_id';
+    `);
+    
+    if (participantsColumnsResult.rows.length === 0) {
+      console.log('Adding missing user_id column to participants table...');
+      await client.query(`
+        ALTER TABLE participants ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+      `);
+      console.log('Added user_id column to participants table successfully');
+    } else {
+      console.log('user_id column already exists in participants table');
+    }
     
     console.log('Creating stories table...');
     await client.query(`
