@@ -28,6 +28,15 @@
                     <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
                         Разрешение конфликтов
                     </a>
+                    <div id="authLinks" class="flex items-center space-x-4">
+                        <a href="/login" class="text-gray-600 hover:text-blue-600 transition-colors">Войти</a>
+                        <a href="/register" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Регистрация</a>
+                    </div>
+                    <div id="userInfo" class="hidden flex items-center space-x-4">
+                        <span id="userName" class="text-gray-700"></span>
+                        <a href="/dashboard" class="text-blue-600 hover:text-blue-700 transition-colors">Мои комнаты</a>
+                        <button id="logoutBtn" class="text-gray-600 hover:text-red-600 transition-colors">Выйти</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -121,6 +130,27 @@
     </div>
 
     <script>
+        function checkAuthStatus() {
+            const token = localStorage.getItem('auth_token');
+            const user = localStorage.getItem('user_info');
+            
+            if (token && user) {
+                const userInfo = JSON.parse(user);
+                document.getElementById('authLinks').classList.add('hidden');
+                document.getElementById('userInfo').classList.remove('hidden');
+                document.getElementById('userName').textContent = userInfo.name;
+            } else {
+                document.getElementById('authLinks').classList.remove('hidden');
+                document.getElementById('userInfo').classList.add('hidden');
+            }
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_info');
+            checkAuthStatus();
+        });
+
         document.getElementById('createRoomForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -137,11 +167,18 @@
             document.getElementById('error').classList.add('hidden');
 
             try {
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                
+                const token = localStorage.getItem('auth_token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
                 const response = await fetch('/api/create-room', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: headers,
                     body: JSON.stringify(data)
                 });
 
@@ -161,6 +198,8 @@
                 document.getElementById('errorMessage').textContent = error.message;
             }
         });
+
+        checkAuthStatus();
     </script>
 </body>
 </html>
