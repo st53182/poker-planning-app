@@ -116,7 +116,7 @@
             <div class="mt-4 text-center">
                 <p class="text-gray-600">
                     Уже есть аккаунт? 
-                    <a href="/login" class="text-blue-600 hover:text-blue-700">Войти</a>
+                    <a id="loginLink" href="/login" class="text-blue-600 hover:text-blue-700">Войти</a>
                 </p>
             </div>
 
@@ -132,6 +132,14 @@
     </div>
 
     <script>
+        // Handle redirect parameter for login link
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectUrl = urlParams.get('redirect');
+        if (redirectUrl) {
+            const loginLink = document.getElementById('loginLink');
+            loginLink.href = `/login?redirect=${encodeURIComponent(redirectUrl)}`;
+        }
+        
         let captchaSessionId = null;
 
         async function loadCaptcha() {
@@ -177,7 +185,15 @@
                 if (result.success) {
                     localStorage.setItem('auth_token', result.token);
                     localStorage.setItem('user_info', JSON.stringify(result.user));
-                    window.location.href = '/dashboard';
+                    
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const redirectUrl = urlParams.get('redirect');
+                    
+                    if (redirectUrl) {
+                        window.location.href = decodeURIComponent(redirectUrl);
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
                 } else {
                     throw new Error(result.error || 'Ошибка регистрации');
                 }
