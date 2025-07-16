@@ -81,7 +81,7 @@
             <div class="mt-4 text-center">
                 <p class="text-gray-600">
                     Нет аккаунта? 
-                    <a href="/register" class="text-blue-600 hover:text-blue-700">Зарегистрироваться</a>
+                    <a id="registerLink" href="/register" class="text-blue-600 hover:text-blue-700">Зарегистрироваться</a>
                 </p>
             </div>
 
@@ -97,6 +97,14 @@
     </div>
 
     <script>
+        // Handle redirect parameter for registration link
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectUrl = urlParams.get('redirect');
+        if (redirectUrl) {
+            const registerLink = document.getElementById('registerLink');
+            registerLink.href = `/register?redirect=${encodeURIComponent(redirectUrl)}`;
+        }
+        
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -124,7 +132,15 @@
                 if (result.success) {
                     localStorage.setItem('auth_token', result.token);
                     localStorage.setItem('user_info', JSON.stringify(result.user));
-                    window.location.href = '/dashboard';
+                    
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const redirectUrl = urlParams.get('redirect');
+                    
+                    if (redirectUrl) {
+                        window.location.href = decodeURIComponent(redirectUrl);
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
                 } else {
                     throw new Error(result.error || 'Ошибка входа');
                 }
