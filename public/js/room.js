@@ -374,6 +374,11 @@ class PlanningPokerRoom {
             return;
         }
         
+        if (!this.roomData || !this.roomData.room_id) {
+            this.showError('Данные комнаты не загружены. Попробуйте обновить страницу.');
+            return;
+        }
+        
         try {
             const response = await fetch('/api/claim-room', {
                 method: 'POST',
