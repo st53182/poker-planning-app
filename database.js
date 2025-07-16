@@ -1,0 +1,376 @@
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+async function initializeDatabase() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id UUID PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        estimation_type VARCHAR(50) NOT NULL,
+        encrypted_link VARCHAR(32) UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        current_story_id UUID
+      );
+      
+      CREATE TABLE IF NOT EXISTS participants (
+        id UUID PRIMARY KEY,
+        room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        competence VARCHAR(50) NOT NULL,
+        is_admin BOOLEAN DEFAULT FALSE,
+        session_id VARCHAR(255),
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS stories (
+        id UUID PRIMARY KEY,
+        room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        voting_state VARCHAR(50) DEFAULT 'not_started',
+        final_estimate VARCHAR(50),
+        created_by UUID REFERENCES participants(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS votes (
+        id UUID PRIMARY KEY,
+        story_id UUID REFERENCES stories(id) ON DELETE CASCADE,
+        participant_id UUID REFERENCES participants(id) ON DELETE CASCADE,
+        participant_name VARCHAR(255) NOT NULL,
+        competence VARCHAR(50) NOT NULL,
+        points VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(story_id, participant_id)
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_rooms_encrypted_link ON rooms(encrypted_link);
+      CREATE INDEX IF NOT EXISTS idx_participants_room_id ON participants(room_id);
+      CREATE INDEX IF NOT EXISTS idx_participants_session_id ON participants(session_id);
+      CREATE INDEX IF NOT EXISTS idx_stories_room_id ON stories(room_id);
+      CREATE INDEX IF NOT EXISTS idx_votes_story_id ON votes(story_id);
+    `);
+  } finally {
+    client.release();
+  }
+}
+
+async function createRoom(name, estimationType, creatorName, creatorCompetence) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    const roomId = require('uuid').v4();
+    const encryptedLink = require('crypto').randomBytes(16).toString('hex');
+    
+    await client.query(
+      'INSERT INTO rooms (id, name, estimation_type, encrypted_link) VALUES ($1, $2, $3, $4)',
+      [roomId, name, estimationType, encryptedLink]
+    );
+    
+    const participantId = require('uuid').v4();
+    await client.query(
+      'INSERT INTO participants (id, room_id, name, competence, is_admin) VALUES ($1, $2, $3, $4, $5)',
+      [participantId, roomId, creatorName, creatorCompetence, true]
+    );
+    
+    await client.query('COMMIT');
+    
+    const room = {
+      id: roomId,
+      name: name,
+      estimation_type: estimationType,
+      encrypted_link: encryptedLink,
+      created_at: new Date(),
+      current_story_id: null,
+      participants: [],
+      stories: []
+    };
+    
+    const participant = {
+      id: participantId,
+      room_id: roomId,
+      name: creatorName,
+      competence: creatorCompetence,
+      is_admin: true,
+      session_id: null,
+      joined_at: new Date()
+    };
+    
+    room.participants.push(participant);
+    
+    return { room, participant };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function joinRoom(encryptedLink, name, competence, sessionId) {
+  const client = await pool.connect();
+  try {
+    const roomResult = await client.query(
+      'SELECT * FROM rooms WHERE encrypted_link = $1',
+      [encryptedLink]
+    );
+    
+    if (roomResult.rows.length === 0) {
+      throw new Error('Комната не найдена');
+    }
+    
+    const room = roomResult.rows[0];
+    
+    let participantResult = await client.query(
+      'SELECT * FROM participants WHERE room_id = $1 AND session_id = $2',
+      [room.id, sessionId]
+    );
+    
+    let participant;
+    
+    if (participantResult.rows.length === 0) {
+      const existingCreatorResult = await client.query(
+        'SELECT * FROM participants WHERE room_id = $1 AND name = $2 AND competence = $3 AND is_admin = true',
+        [room.id, name, competence]
+      );
+      
+      if (existingCreatorResult.rows.length > 0) {
+        await client.query(
+          'UPDATE participants SET session_id = $1 WHERE id = $2',
+          [sessionId, existingCreatorResult.rows[0].id]
+        );
+        participant = existingCreatorResult.rows[0];
+        participant.session_id = sessionId;
+      } else {
+        const participantId = require('uuid').v4();
+        await client.query(
+          'INSERT INTO participants (id, room_id, name, competence, is_admin, session_id) VALUES ($1, $2, $3, $4, $5, $6)',
+          [participantId, room.id, name, competence, false, sessionId]
+        );
+        
+        participant = {
+          id: participantId,
+          room_id: room.id,
+          name: name,
+          competence: competence,
+          is_admin: false,
+          session_id: sessionId,
+          joined_at: new Date()
+        };
+      }
+    } else {
+      participant = participantResult.rows[0];
+      await client.query(
+        'UPDATE participants SET name = $1, competence = $2 WHERE id = $3',
+        [name, competence, participant.id]
+      );
+      participant.name = name;
+      participant.competence = competence;
+    }
+    
+    const participantsResult = await client.query(
+      'SELECT * FROM participants WHERE room_id = $1 ORDER BY joined_at',
+      [room.id]
+    );
+    
+    const storiesResult = await client.query(
+      'SELECT * FROM stories WHERE room_id = $1 ORDER BY created_at DESC',
+      [room.id]
+    );
+    
+    room.participants = participantsResult.rows;
+    room.stories = storiesResult.rows;
+    
+    return { room, participant };
+  } finally {
+    client.release();
+  }
+}
+
+async function getRoomById(roomId) {
+  const client = await pool.connect();
+  try {
+    const roomResult = await client.query('SELECT * FROM rooms WHERE id = $1', [roomId]);
+    if (roomResult.rows.length === 0) {
+      throw new Error('Комната не найдена');
+    }
+    
+    const room = roomResult.rows[0];
+    
+    const participantsResult = await client.query(
+      'SELECT * FROM participants WHERE room_id = $1 ORDER BY joined_at',
+      [roomId]
+    );
+    
+    const storiesResult = await client.query(
+      'SELECT * FROM stories WHERE room_id = $1 ORDER BY created_at DESC',
+      [roomId]
+    );
+    
+    room.participants = participantsResult.rows;
+    room.stories = storiesResult.rows;
+    
+    return room;
+  } finally {
+    client.release();
+  }
+}
+
+async function createStory(roomId, title, description, participantId) {
+  const client = await pool.connect();
+  try {
+    const roomResult = await client.query('SELECT * FROM rooms WHERE id = $1', [roomId]);
+    const participantResult = await client.query('SELECT * FROM participants WHERE id = $1', [participantId]);
+    
+    if (roomResult.rows.length === 0 || participantResult.rows.length === 0 || 
+        participantResult.rows[0].room_id !== roomId) {
+      throw new Error('Неверная комната или участник');
+    }
+    
+    const storyId = require('uuid').v4();
+    await client.query(
+      'INSERT INTO stories (id, room_id, title, description, created_by) VALUES ($1, $2, $3, $4, $5)',
+      [storyId, roomId, title, description, participantId]
+    );
+    
+    const story = {
+      id: storyId,
+      room_id: roomId,
+      title: title,
+      description: description,
+      voting_state: 'not_started',
+      final_estimate: null,
+      created_by: participantId,
+      created_at: new Date()
+    };
+    
+    return story;
+  } finally {
+    client.release();
+  }
+}
+
+async function getSimilarStories(roomId, voteValue, competence) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'SELECT title, final_estimate FROM stories WHERE room_id = $1 AND final_estimate = $2 ORDER BY created_at DESC LIMIT 10',
+      [roomId, voteValue]
+    );
+    
+    return result.rows.map(s => ({
+      title: s.title,
+      points: s.final_estimate,
+      competence: competence
+    }));
+  } finally {
+    client.release();
+  }
+}
+
+async function getStoryVotes(storyId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'SELECT * FROM votes WHERE story_id = $1',
+      [storyId]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+async function submitVote(storyId, participantId, participantName, competence, points) {
+  const client = await pool.connect();
+  try {
+    const voteId = require('uuid').v4();
+    await client.query(
+      'INSERT INTO votes (id, story_id, participant_id, participant_name, competence, points) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (story_id, participant_id) DO UPDATE SET participant_name = $4, competence = $5, points = $6',
+      [voteId, storyId, participantId, participantName, competence, points]
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function updateStoryVotingState(storyId, votingState) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE stories SET voting_state = $1 WHERE id = $2',
+      [votingState, storyId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function updateStoryFinalEstimate(storyId, finalEstimate) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE stories SET voting_state = $1, final_estimate = $2 WHERE id = $3',
+      ['completed', finalEstimate, storyId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function updateRoomCurrentStory(roomId, storyId) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE rooms SET current_story_id = $1 WHERE id = $2',
+      [storyId, roomId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function makeParticipantAdmin(participantId) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE participants SET is_admin = true WHERE id = $1',
+      [participantId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function clearStoryVotes(storyId) {
+  const client = await pool.connect();
+  try {
+    await client.query('DELETE FROM votes WHERE story_id = $1', [storyId]);
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { 
+  pool, 
+  initializeDatabase, 
+  createRoom, 
+  joinRoom, 
+  createStory, 
+  getSimilarStories,
+  getStoryVotes,
+  submitVote,
+  updateStoryVotingState,
+  updateStoryFinalEstimate,
+  updateRoomCurrentStory,
+  makeParticipantAdmin,
+  clearStoryVotes,
+  getRoomById
+};
