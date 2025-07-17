@@ -659,6 +659,17 @@ class PlanningPokerRoom {
             const authLinks = document.getElementById('authLinks');
             if (authLinks) {
                 authLinks.classList.remove('hidden');
+                
+                const currentUrl = encodeURIComponent(window.location.href);
+                const loginLink = document.getElementById('loginLink');
+                const registerLink = document.getElementById('registerLink');
+                
+                if (loginLink) {
+                    loginLink.href = `/login?redirect=${currentUrl}`;
+                }
+                if (registerLink) {
+                    registerLink.href = `/register?redirect=${currentUrl}`;
+                }
             }
             const claimBtn = document.getElementById('claimRoomBtn');
             if (claimBtn) {
