@@ -675,7 +675,10 @@ class PlanningPokerRoom {
         const container = document.getElementById('participantsList');
         const count = document.getElementById('participantsCount');
         
-        count.textContent = this.participants.length;
+        const connectedParticipants = this.participants.filter(participant => 
+            this.connectedParticipantIds && this.connectedParticipantIds.includes(participant.id)
+        );
+        count.textContent = connectedParticipants.length;
         
         if (this.participants.length === 0) {
             container.innerHTML = '<p class="text-gray-500 text-center py-8">Пока нет участников.</p>';
