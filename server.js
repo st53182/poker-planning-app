@@ -40,7 +40,8 @@ const {
   updateUserLastLogin,
   claimRoom,
   deleteRoom,
-  updateParticipantAdminStatus
+  updateParticipantAdminStatus,
+  removeParticipant
 } = require('./database');
 
 const app = express();
@@ -492,6 +493,18 @@ io.on('connection', (socket) => {
         participant: participant
       });
       
+      const connectedParticipants = [];
+      for (const [participantId, socketId] of connectedUsers.entries()) {
+        const participantSocket = io.sockets.sockets.get(socketId);
+        if (participantSocket && participantSocket.room_id === room.id) {
+          connectedParticipants.push(participantId);
+        }
+      }
+      
+      io.to(room.id).emit('participants_updated', { 
+        connected_participant_ids: connectedParticipants 
+      });
+      
     } catch (error) {
       socket.emit('error', { message: error.message });
     }
@@ -637,6 +650,46 @@ io.on('connection', (socket) => {
       const { room_id, story_orders } = data;
       await updateStoryOrder(room_id, story_orders);
       io.to(room_id).emit('stories_reordered', { story_orders });
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+    }
+  });
+
+  socket.on('remove_participant', async (data) => {
+    try {
+      const { room_id, target_participant_id, participant_id } = data;
+      
+      const result = await removeParticipant(target_participant_id, participant_id);
+      
+      connectedUsers.delete(target_participant_id);
+      
+      for (const [socketId, socket] of io.sockets.sockets.entries()) {
+        if (socket.participant_id === target_participant_id) {
+          socket.emit('participant_removed', { 
+            message: 'Вы были удалены из комнаты администратором' 
+          });
+          socket.disconnect();
+          break;
+        }
+      }
+      
+      const connectedParticipants = [];
+      for (const [participantId, socketId] of connectedUsers.entries()) {
+        const participantSocket = io.sockets.sockets.get(socketId);
+        if (participantSocket && participantSocket.room_id === room_id) {
+          connectedParticipants.push(participantId);
+        }
+      }
+      
+      io.to(room_id).emit('participant_removed_by_admin', {
+        participant_id: target_participant_id,
+        participant_name: result.participant_name
+      });
+      
+      io.to(room_id).emit('participants_updated', { 
+        connected_participant_ids: connectedParticipants 
+      });
+      
     } catch (error) {
       socket.emit('error', { message: error.message });
     }

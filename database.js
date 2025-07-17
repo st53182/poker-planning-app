@@ -773,6 +773,46 @@ async function updateParticipantAdminStatus(participantId, isAdmin) {
   }
 }
 
+async function removeParticipant(participantId, adminParticipantId) {
+  const client = await pool.connect();
+  try {
+    const adminResult = await client.query(
+      'SELECT p1.room_id, p1.is_admin FROM participants p1 WHERE p1.id = $1',
+      [adminParticipantId]
+    );
+    
+    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
+      throw new Error('Только администраторы могут удалять участников');
+    }
+    
+    const participantResult = await client.query(
+      'SELECT room_id, name FROM participants WHERE id = $1',
+      [participantId]
+    );
+    
+    if (participantResult.rows.length === 0) {
+      throw new Error('Участник не найден');
+    }
+    
+    const participant = participantResult.rows[0];
+    
+    if (participant.room_id !== adminResult.rows[0].room_id) {
+      throw new Error('Участники должны быть в одной комнате');
+    }
+    
+    await client.query('DELETE FROM participants WHERE id = $1', [participantId]);
+    
+    return { 
+      success: true, 
+      participant_id: participantId,
+      room_id: participant.room_id,
+      participant_name: participant.name
+    };
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = { 
   pool, 
   initializeDatabase, 
@@ -799,5 +839,6 @@ module.exports = {
   updateUserLastLogin,
   claimRoom,
   deleteRoom,
-  updateParticipantAdminStatus
+  updateParticipantAdminStatus,
+  removeParticipant
 };

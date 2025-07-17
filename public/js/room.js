@@ -209,6 +209,19 @@ class PlanningPokerRoom {
             this.showToast('Голосование прервано. Выбрана новая история.', 'info');
             this.resetVotingState();
         });
+
+        this.socket.on('participant_removed', (data) => {
+            this.showError(data.message);
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 3000);
+        });
+
+        this.socket.on('participant_removed_by_admin', (data) => {
+            this.participants = this.participants.filter(p => p.id !== data.participant_id);
+            this.updateParticipantsList();
+            this.showToast(`Участник ${data.participant_name} был удален из комнаты`, 'info');
+        });
     }
 
     joinRoom() {
@@ -298,7 +311,7 @@ class PlanningPokerRoom {
         this.stories = data.stories;
         this.currentStory = data.current_story;
         this.isAdmin = data.participant.is_admin;
-        this.connectedParticipantIds = data.participants.map(p => p.id);
+        this.connectedParticipantIds = [data.participant.id];
 
         document.getElementById('roomName').textContent = data.room_name || 'Комната Планирования';
         document.getElementById('estimationType').textContent = `Тип оценки: ${data.estimation_type === 'story_points' ? 'Стори поинты' : 'Часы'}`;
@@ -447,6 +460,24 @@ class PlanningPokerRoom {
             target_participant_id: participantId,
             participant_id: this.participant.id
         });
+    }
+
+    removeParticipant(participantId) {
+        if (!this.isAdmin) {
+            this.showError('Только администраторы могут удалять участников');
+            return;
+        }
+        
+        const participant = this.participants.find(p => p.id === participantId);
+        if (!participant) return;
+        
+        if (confirm(`Вы уверены, что хотите удалить участника ${participant.name} из комнаты?`)) {
+            this.socket.emit('remove_participant', {
+                room_id: this.roomData.room_id,
+                target_participant_id: participantId,
+                participant_id: this.participant.id
+            });
+        }
     }
 
     async claimRoom() {
@@ -669,6 +700,10 @@ class PlanningPokerRoom {
                 ? `<button onclick="room.makeAdmin('${participant.id}')" class="text-xs text-blue-600 hover:text-blue-800">Сделать админом</button>`
                 : '';
             
+            const removeBtn = this.isAdmin && participant.id !== this.participant.id
+                ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">Удалить</button>`
+                : '';
+            
             participantElement.innerHTML = `
                 <div>
                     <div class="font-medium text-gray-900">${participant.name}</div>
@@ -677,6 +712,7 @@ class PlanningPokerRoom {
                 <div class="flex items-center space-x-2">
                     ${adminBadge}
                     ${makeAdminBtn}
+                    ${removeBtn}
                 </div>
             `;
             
