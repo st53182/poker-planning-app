@@ -38,7 +38,8 @@ const {
   getUserById,
   getUserRooms,
   updateUserLastLogin,
-  claimRoom
+  claimRoom,
+  deleteRoom
 } = require('./database');
 
 const app = express();
@@ -191,7 +192,7 @@ app.post('/api/bulk-create-stories-image', upload.single('image'), async (req, r
           content: [
             {
               type: "text",
-              text: "Analyze this screenshot and extract user stories/tasks. Return a JSON array of objects with 'title' and 'description' fields. Focus on actionable items, features, or tasks visible in the image. Each title should be concise (under 100 characters) and each description should provide context (under 500 characters). Return only valid JSON without any markdown formatting."
+              text: "Extract user stories/tasks from this image using ONLY the exact text visible. Do NOT modify, rephrase, or add any content. Return a JSON array of objects with 'title' and 'description' fields using the precise wording from the image. Each title should be the exact text (under 100 characters) and each description should be the exact context text (under 500 characters). Return only valid JSON without any markdown formatting."
             },
             {
               type: "image_url",
@@ -248,7 +249,7 @@ app.post('/api/bulk-create-stories-text', async (req, res) => {
       messages: [
         {
           role: "user",
-          content: `Analyze this text and extract user stories/tasks. Return a JSON array of objects with 'title' and 'description' fields. Focus on actionable items, features, or tasks mentioned in the text. Each title should be concise (under 100 characters) and each description should provide context (under 500 characters). Return only valid JSON without any markdown formatting:\n\n${text}`
+          content: `Extract user stories/tasks from this text using ONLY the exact words provided. Do NOT modify, rephrase, or add any content. Return a JSON array of objects with 'title' and 'description' fields using the precise wording from the input text. Each title should be the exact text (under 100 characters) and each description should be the exact context text (under 500 characters). Return only valid JSON without any markdown formatting:\n\n${text}`
         }
       ],
       max_tokens: 1000
@@ -419,6 +420,21 @@ app.post('/api/claim-room', authenticateToken, async (req, res) => {
     res.json({ success: true, message: result.message });
   } catch (error) {
     console.log('Claim room error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/delete-room', authenticateToken, async (req, res) => {
+  try {
+    const { room_id } = req.body;
+    
+    if (!room_id) {
+      return res.status(400).json({ error: 'ID комнаты обязателен' });
+    }
+    
+    const result = await deleteRoom(room_id, req.user.userId);
+    res.json({ success: true, message: result.message });
+  } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
 });

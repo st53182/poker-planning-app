@@ -99,6 +99,13 @@ class PlanningPokerRoom {
                 this.claimRoom();
             });
         }
+
+        const deleteBtn = document.getElementById('deleteRoomBtn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                this.deleteRoom();
+            });
+        }
     }
 
     initializeSocketListeners() {
@@ -482,6 +489,42 @@ class PlanningPokerRoom {
         }
     }
 
+    async deleteRoom() {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            this.showError('Необходимо войти в систему для удаления комнаты');
+            return;
+        }
+        
+        if (!confirm('Вы уверены, что хотите удалить эту комнату? Это действие нельзя отменить.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/delete-room', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    room_id: this.roomData.room_id
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showToast(result.message, 'success');
+                window.location.href = '/dashboard.html';
+            } else {
+                this.showError(result.error);
+            }
+        } catch (error) {
+            this.showError('Ошибка при удалении комнаты: ' + error.message);
+        }
+    }
+
     updateCurrentStory() {
         const section = document.getElementById('currentStorySection');
         
@@ -763,6 +806,18 @@ class PlanningPokerRoom {
                 const claimBtn = document.getElementById('claimRoomBtn');
                 if (claimBtn) {
                     claimBtn.classList.add('hidden');
+                }
+            }
+
+            if (this.isAdmin) {
+                const deleteBtn = document.getElementById('deleteRoomBtn');
+                if (deleteBtn) {
+                    deleteBtn.classList.remove('hidden');
+                }
+            } else {
+                const deleteBtn = document.getElementById('deleteRoomBtn');
+                if (deleteBtn) {
+                    deleteBtn.classList.add('hidden');
                 }
             }
         } else {
