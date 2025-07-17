@@ -192,6 +192,16 @@ class PlanningPokerRoom {
         this.socket.on('error', (data) => {
             this.showError(data.message);
         });
+
+        this.socket.on('participants_updated', (data) => {
+            this.connectedParticipantIds = data.connected_participant_ids;
+            this.updateParticipantsList();
+        });
+
+        this.socket.on('voting_interrupted', (data) => {
+            this.showToast('Голосование прервано. Выбрана новая история.', 'info');
+            this.resetVotingState();
+        });
     }
 
     joinRoom() {
@@ -278,6 +288,7 @@ class PlanningPokerRoom {
         this.stories = data.stories;
         this.currentStory = data.current_story;
         this.isAdmin = data.participant.is_admin;
+        this.connectedParticipantIds = data.participants.map(p => p.id);
 
         document.getElementById('roomName').textContent = data.room_name || 'Комната Планирования';
         document.getElementById('estimationType').textContent = `Тип оценки: ${data.estimation_type === 'story_points' ? 'Стори поинты' : 'Часы'}`;
@@ -303,8 +314,8 @@ class PlanningPokerRoom {
     generateVotingCards() {
         const votingCards = document.getElementById('votingCards');
         const values = this.roomData.estimation_type === 'story_points' 
-            ? [0.5, 1, 2, 3, 5, 8, 13, 21, 34]
-            : [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64];
+            ? [0.5, 1, 2, 3, 5, 8, 13, 21, 34, '☕']
+            : [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, '☕'];
 
         votingCards.innerHTML = '';
         
@@ -457,6 +468,12 @@ class PlanningPokerRoom {
             if (result.success) {
                 this.showToast(result.message, 'success');
                 document.getElementById('claimRoomBtn').classList.add('hidden');
+                
+                this.isAdmin = true;
+                this.participant.is_admin = true;
+                document.getElementById('adminBadge').classList.remove('hidden');
+                document.getElementById('adminControls').classList.remove('hidden');
+                this.updateParticipantsList();
             } else {
                 this.showError(result.error);
             }
@@ -591,6 +608,10 @@ class PlanningPokerRoom {
         container.innerHTML = '';
         
         this.participants.forEach(participant => {
+            if (this.connectedParticipantIds && !this.connectedParticipantIds.includes(participant.id)) {
+                return;
+            }
+            
             const participantElement = document.createElement('div');
             participantElement.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
             
