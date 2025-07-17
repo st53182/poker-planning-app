@@ -182,7 +182,7 @@ app.post('/api/bulk-create-stories-image', upload.single('image'), async (req, r
     const base64Image = req.file.buffer.toString('base64');
     
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       messages: [
         {
           role: "user",
