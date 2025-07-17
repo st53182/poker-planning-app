@@ -39,7 +39,8 @@ const {
   getUserRooms,
   updateUserLastLogin,
   claimRoom,
-  deleteRoom
+  deleteRoom,
+  updateParticipantAdminStatus
 } = require('./database');
 
 const app = express();
@@ -444,7 +445,7 @@ io.on('connection', (socket) => {
   
   socket.on('join_room_by_link', async (data) => {
     try {
-      const { encrypted_link, name, competence, session_id, auth_token } = data;
+      const { encrypted_link, name, competence, session_id, auth_token, from_dashboard } = data;
       
       let userId = null;
       if (auth_token) {
@@ -463,6 +464,16 @@ io.on('connection', (socket) => {
       socket.room_id = room.id;
       
       connectedUsers.set(participant.id, socket.id);
+      
+      if (from_dashboard && userId) {
+        const userRooms = await getUserRooms(userId);
+        const ownsRoom = userRooms.some(r => r.encrypted_link === encrypted_link);
+        
+        if (ownsRoom) {
+          await updateParticipantAdminStatus(participant.id, true);
+          participant.is_admin = true;
+        }
+      }
       
       const currentStory = room.current_story_id ? room.stories.find(s => s.id === room.current_story_id) : null;
       

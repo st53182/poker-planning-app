@@ -272,13 +272,16 @@ class PlanningPokerRoom {
     performJoin(encryptedLink, name, competence) {
         const sessionId = localStorage.getItem('session_id') || this.generateSessionId();
         const authToken = localStorage.getItem('auth_token');
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromDashboard = urlParams.get('from_dashboard') === 'true';
         
         this.socket.emit('join_room_by_link', {
             encrypted_link: encryptedLink,
             name: name,
             competence: competence,
             session_id: sessionId,
-            auth_token: authToken
+            auth_token: authToken,
+            from_dashboard: fromDashboard
         });
     }
 

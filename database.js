@@ -761,6 +761,18 @@ async function deleteRoom(roomId, userId) {
   }
 }
 
+async function updateParticipantAdminStatus(participantId, isAdmin) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE participants SET is_admin = $1 WHERE id = $2',
+      [isAdmin, participantId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = { 
   pool, 
   initializeDatabase, 
@@ -786,5 +798,6 @@ module.exports = {
   getUserRooms,
   updateUserLastLogin,
   claimRoom,
-  deleteRoom
+  deleteRoom,
+  updateParticipantAdminStatus
 };
