@@ -212,12 +212,52 @@
                 </div>
 
                 <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Массовое создание историй</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Загрузить изображение</label>
+                            <input type="file" id="bulkImageUpload" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <button id="createStoriesFromImageBtn" class="mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors">
+                                Создать истории из изображения
+                            </button>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Вставить текст</label>
+                            <textarea id="bulkTextInput" placeholder="Вставьте текст с задачами..." rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            <button id="createStoriesFromTextBtn" class="mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors">
+                                Создать истории из текста
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Все истории</h3>
                     <div id="adminHint" class="hidden mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p class="text-sm text-blue-800">
                             💡 <strong>Подсказка:</strong> Нажмите на любую историю ниже, чтобы начать её оценку
                         </p>
                     </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Фильтр по оценке</label>
+                        <select id="storyFilter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="all">Все истории</option>
+                            <option value="unestimated">Неоценённые</option>
+                            <option value="0.5">0.5 поинтов</option>
+                            <option value="1">1 поинт</option>
+                            <option value="2">2 поинта</option>
+                            <option value="3">3 поинта</option>
+                            <option value="5">5 поинтов</option>
+                            <option value="8">8 поинтов</option>
+                            <option value="13">13 поинтов</option>
+                            <option value="21">21 поинт</option>
+                            <option value="34">34 поинта</option>
+                        </select>
+                    </div>
+                    
                     <div id="storiesList" class="space-y-3">
                         <p class="text-gray-500 text-center py-8">Пока нет историй. Добавьте первую историю выше!</p>
                     </div>
@@ -277,6 +317,47 @@
                 >
                     Войти в комнату
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editStoryModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Редактировать историю</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Название истории</label>
+                    <input 
+                        id="editStoryTitle"
+                        type="text" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Описание</label>
+                    <textarea 
+                        id="editStoryDescription"
+                        rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    ></textarea>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button 
+                        id="saveStoryBtn"
+                        class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                        Сохранить
+                    </button>
+                    <button 
+                        id="cancelEditBtn"
+                        class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors"
+                    >
+                        Отмена
+                    </button>
+                </div>
             </div>
         </div>
     </div>

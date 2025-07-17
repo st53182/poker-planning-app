@@ -28,6 +28,26 @@ class PlanningPokerRoom {
             this.createStory();
         });
 
+        document.getElementById('createStoriesFromImageBtn').addEventListener('click', () => {
+            this.createStoriesFromImage();
+        });
+
+        document.getElementById('createStoriesFromTextBtn').addEventListener('click', () => {
+            this.createStoriesFromText();
+        });
+
+        document.getElementById('storyFilter').addEventListener('change', (e) => {
+            this.filterStories(e.target.value);
+        });
+
+        document.getElementById('saveStoryBtn').addEventListener('click', () => {
+            this.saveStoryEdit();
+        });
+
+        document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            this.cancelStoryEdit();
+        });
+
         document.getElementById('startVotingBtn').addEventListener('click', () => {
             this.startVoting();
         });
@@ -77,6 +97,31 @@ class PlanningPokerRoom {
 
         this.socket.on('story_created', (data) => {
             this.stories.unshift(data.story);
+            this.updateStoriesList();
+        });
+
+        this.socket.on('bulk_stories_created', (data) => {
+            data.stories.forEach(story => {
+                this.stories.unshift(story);
+            });
+            this.updateStoriesList();
+        });
+
+        this.socket.on('story_updated', (data) => {
+            const storyIndex = this.stories.findIndex(s => s.id === data.story.id);
+            if (storyIndex !== -1) {
+                this.stories[storyIndex] = data.story;
+                this.updateStoriesList();
+            }
+        });
+
+        this.socket.on('story_deleted', (data) => {
+            this.stories = this.stories.filter(s => s.id !== data.story_id);
+            this.updateStoriesList();
+        });
+
+        this.socket.on('stories_reordered', (data) => {
+            this.updateLocalStoryOrder(data.story_orders);
             this.updateStoriesList();
         });
 
@@ -558,17 +603,31 @@ class PlanningPokerRoom {
 
     updateStoriesList() {
         const container = document.getElementById('storiesList');
+        const filterValue = document.getElementById('storyFilter').value;
         
-        if (this.stories.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-8">Пока нет историй. Добавьте первую историю выше!</p>';
+        let displayStories = this.stories;
+        if (filterValue !== 'all') {
+            if (filterValue === 'unestimated') {
+                displayStories = this.stories.filter(s => !s.final_estimate);
+            } else {
+                displayStories = this.stories.filter(s => s.final_estimate == filterValue);
+            }
+        }
+        
+        if (displayStories.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center py-8">Нет историй для отображения.</p>';
             return;
         }
         
         container.innerHTML = '';
         
-        this.stories.forEach(story => {
+        displayStories.forEach((story, index) => {
             const storyElement = document.createElement('div');
             const isCurrentStory = this.currentStory && story.id === this.currentStory.id;
+            
+            storyElement.draggable = this.isAdmin;
+            storyElement.dataset.storyId = story.id;
+            storyElement.dataset.orderPosition = story.order_position || index;
             
             const clickableClass = this.isAdmin ? 'cursor-pointer hover:bg-gray-50 hover:border-blue-300' : '';
             const clickHint = this.isAdmin && !isCurrentStory ? 'border-l-4 border-l-blue-400' : '';
@@ -578,7 +637,14 @@ class PlanningPokerRoom {
             }`;
             
             if (this.isAdmin) {
-                storyElement.addEventListener('click', () => this.setCurrentStory(story.id));
+                storyElement.addEventListener('dragstart', this.handleDragStart.bind(this));
+                storyElement.addEventListener('dragover', this.handleDragOver.bind(this));
+                storyElement.addEventListener('drop', this.handleDrop.bind(this));
+                storyElement.addEventListener('click', (e) => {
+                    if (!e.target.closest('button')) {
+                        this.setCurrentStory(story.id);
+                    }
+                });
                 storyElement.title = 'Нажмите, чтобы начать оценку этой истории';
             }
             
@@ -603,14 +669,22 @@ class PlanningPokerRoom {
             const clickHintText = this.isAdmin && !isCurrentStory ? 
                 '<div class="text-xs text-blue-600 mt-1">👆 Нажмите для начала оценки</div>' : '';
             
+            const actionButtons = this.isAdmin ? `
+                <div class="flex space-x-2 mt-2">
+                    <button onclick="room.editStory('${story.id}')" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded">Редактировать</button>
+                    <button onclick="room.deleteStory('${story.id}')" class="text-xs text-red-600 hover:text-red-800 px-2 py-1 bg-red-50 rounded">Удалить</button>
+                </div>
+            ` : '';
+            
             storyElement.innerHTML = `
                 <div class="flex justify-between items-start">
-                    <div>
+                    <div class="flex-1">
                         <h4 class="font-medium text-gray-900">${story.title}</h4>
                         ${story.description ? `<p class="text-sm text-gray-600 mt-1">${story.description}</p>` : ''}
                         ${clickHintText}
+                        ${actionButtons}
                     </div>
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-2 ml-4">
                         ${finalEstimateBadge}
                         <span class="px-2 py-1 rounded text-xs ${stateClasses[story.voting_state] || 'bg-gray-100 text-gray-800'}">
                             ${stateLabels[story.voting_state] || story.voting_state}
@@ -683,6 +757,193 @@ class PlanningPokerRoom {
                 adminHint.classList.remove('hidden');
             }
         }
+    }
+
+    async createStoriesFromImage() {
+        const fileInput = document.getElementById('bulkImageUpload');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            this.showError('Пожалуйста, выберите изображение');
+            return;
+        }
+
+        const button = document.getElementById('createStoriesFromImageBtn');
+        button.disabled = true;
+        button.textContent = 'Обработка...';
+
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('room_id', this.roomData.room_id);
+        formData.append('participant_id', this.participant.id);
+
+        try {
+            const response = await fetch('/api/bulk-create-stories-image', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                this.showToast(`Создано ${result.stories.length} историй из изображения`, 'success');
+                fileInput.value = '';
+            } else {
+                this.showError(result.error);
+            }
+        } catch (error) {
+            this.showError('Ошибка при создании историй: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Создать истории из изображения';
+        }
+    }
+
+    async createStoriesFromText() {
+        const text = document.getElementById('bulkTextInput').value.trim();
+        
+        if (!text) {
+            this.showError('Пожалуйста, введите текст');
+            return;
+        }
+
+        const button = document.getElementById('createStoriesFromTextBtn');
+        button.disabled = true;
+        button.textContent = 'Обработка...';
+
+        try {
+            const response = await fetch('/api/bulk-create-stories-text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    room_id: this.roomData.room_id,
+                    participant_id: this.participant.id,
+                    text: text
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                this.showToast(`Создано ${result.stories.length} историй из текста`, 'success');
+                document.getElementById('bulkTextInput').value = '';
+            } else {
+                this.showError(result.error);
+            }
+        } catch (error) {
+            this.showError('Ошибка при создании историй: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Создать истории из текста';
+        }
+    }
+
+    editStory(storyId) {
+        const story = this.stories.find(s => s.id === storyId);
+        if (!story) return;
+
+        this.editingStoryId = storyId;
+        document.getElementById('editStoryTitle').value = story.title;
+        document.getElementById('editStoryDescription').value = story.description || '';
+        document.getElementById('editStoryModal').classList.remove('hidden');
+    }
+
+    saveStoryEdit() {
+        const title = document.getElementById('editStoryTitle').value.trim();
+        const description = document.getElementById('editStoryDescription').value.trim();
+
+        if (!title) {
+            this.showError('Пожалуйста, введите название истории');
+            return;
+        }
+
+        this.socket.emit('update_story', {
+            story_id: this.editingStoryId,
+            title: title,
+            description: description,
+            room_id: this.roomData.room_id
+        });
+
+        this.cancelStoryEdit();
+    }
+
+    cancelStoryEdit() {
+        document.getElementById('editStoryModal').classList.add('hidden');
+        this.editingStoryId = null;
+    }
+
+    deleteStory(storyId) {
+        if (confirm('Вы уверены, что хотите удалить эту историю?')) {
+            this.socket.emit('delete_story', {
+                story_id: storyId,
+                room_id: this.roomData.room_id
+            });
+        }
+    }
+
+    handleDragStart(e) {
+        e.dataTransfer.setData('text/plain', e.target.dataset.storyId);
+        e.target.style.opacity = '0.5';
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        const draggedStoryId = e.dataTransfer.getData('text/plain');
+        const targetElement = e.target.closest('[data-story-id]');
+        
+        if (!targetElement) return;
+        
+        const targetStoryId = targetElement.dataset.storyId;
+        
+        if (draggedStoryId !== targetStoryId) {
+            this.reorderStories(draggedStoryId, targetStoryId);
+        }
+        
+        document.querySelectorAll('[data-story-id]').forEach(el => {
+            el.style.opacity = '1';
+        });
+    }
+
+    reorderStories(draggedStoryId, targetStoryId) {
+        const draggedIndex = this.stories.findIndex(s => s.id === draggedStoryId);
+        const targetIndex = this.stories.findIndex(s => s.id === targetStoryId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        const storyOrders = [];
+        const newStories = [...this.stories];
+        const [draggedStory] = newStories.splice(draggedIndex, 1);
+        newStories.splice(targetIndex, 0, draggedStory);
+        
+        newStories.forEach((story, index) => {
+            storyOrders.push({
+                storyId: story.id,
+                orderPosition: index + 1
+            });
+        });
+        
+        this.socket.emit('reorder_stories', {
+            room_id: this.roomData.room_id,
+            story_orders: storyOrders
+        });
+    }
+
+    updateLocalStoryOrder(storyOrders) {
+        const orderMap = {};
+        storyOrders.forEach(order => {
+            orderMap[order.storyId] = order.orderPosition;
+        });
+        
+        this.stories.forEach(story => {
+            if (orderMap[story.id] !== undefined) {
+                story.order_position = orderMap[story.id];
+            }
+        });
+        
+        this.stories.sort((a, b) => (a.order_position || 0) - (b.order_position || 0));
     }
 
     showToast(message, type = 'info') {

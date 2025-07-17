@@ -104,6 +104,33 @@ async function initializeDatabase() {
     `);
     console.log('Stories table created successfully');
     
+    console.log('Checking for missing columns in stories table...');
+    const storiesColumnsResult = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'stories' AND column_name = 'order_position';
+    `);
+    
+    if (storiesColumnsResult.rows.length === 0) {
+      console.log('Adding missing order_position column to stories table...');
+      await client.query(`
+        ALTER TABLE stories ADD COLUMN order_position INTEGER DEFAULT 0;
+      `);
+      
+      console.log('Updating existing stories with order_position based on created_at...');
+      await client.query(`
+        UPDATE stories SET order_position = subquery.row_num
+        FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY created_at DESC) as row_num
+          FROM stories
+        ) AS subquery
+        WHERE stories.id = subquery.id;
+      `);
+      console.log('Added order_position column to stories table successfully');
+    } else {
+      console.log('order_position column already exists in stories table');
+    }
+    
     console.log('Creating votes table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS votes (
@@ -299,7 +326,7 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     );
     
     const storiesResult = await client.query(
-      'SELECT * FROM stories WHERE room_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM stories WHERE room_id = $1 ORDER BY order_position ASC',
       [room.id]
     );
     
@@ -328,7 +355,7 @@ async function getRoomById(roomId) {
     );
     
     const storiesResult = await client.query(
-      'SELECT * FROM stories WHERE room_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM stories WHERE room_id = $1 ORDER BY order_position ASC',
       [roomId]
     );
     
@@ -352,11 +379,19 @@ async function createStory(roomId, title, description, participantId) {
       throw new Error('Неверная комната или участник');
     }
     
+    const orderPositionResult = await client.query(
+      'SELECT COALESCE(MAX(order_position), 0) + 1 as next_position FROM stories WHERE room_id = $1',
+      [roomId]
+    );
+    const orderPosition = orderPositionResult.rows[0].next_position;
+    
     const storyId = require('uuid').v4();
     await client.query(
-      'INSERT INTO stories (id, room_id, title, description, created_by) VALUES ($1, $2, $3, $4, $5)',
-      [storyId, roomId, title, description, participantId]
+      'INSERT INTO stories (id, room_id, title, description, created_by, order_position) VALUES ($1, $2, $3, $4, $5, $6)',
+      [storyId, roomId, title, description, participantId, orderPosition]
     );
+    
+    await enforceStoryLimit(client, roomId);
     
     const story = {
       id: storyId,
@@ -366,7 +401,8 @@ async function createStory(roomId, title, description, participantId) {
       voting_state: 'not_started',
       final_estimate: null,
       created_by: participantId,
-      created_at: new Date()
+      created_at: new Date(),
+      order_position: orderPosition
     };
     
     return story;
@@ -596,12 +632,123 @@ async function updateUserLastLogin(userId) {
   }
 }
 
+async function createBulkStories(roomId, stories, participantId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const createdStories = [];
+    
+    for (let i = 0; i < stories.length; i++) {
+      const orderPositionResult = await client.query(
+        'SELECT COALESCE(MAX(order_position), 0) + 1 as next_position FROM stories WHERE room_id = $1',
+        [roomId]
+      );
+      const orderPosition = orderPositionResult.rows[0].next_position;
+      
+      const story = {
+        id: require('uuid').v4(),
+        room_id: roomId,
+        title: stories[i].title,
+        description: stories[i].description || '',
+        voting_state: 'not_started',
+        final_estimate: null,
+        created_by: participantId,
+        created_at: new Date(),
+        order_position: orderPosition
+      };
+      
+      await client.query(
+        'INSERT INTO stories (id, room_id, title, description, voting_state, final_estimate, created_by, created_at, order_position) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        [story.id, story.room_id, story.title, story.description, story.voting_state, story.final_estimate, story.created_by, story.created_at, story.order_position]
+      );
+      
+      createdStories.push(story);
+    }
+    
+    await enforceStoryLimit(client, roomId);
+    await client.query('COMMIT');
+    return createdStories;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function updateStory(storyId, title, description) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE stories SET title = $1, description = $2 WHERE id = $3',
+      [title, description, storyId]
+    );
+    
+    const result = await client.query(
+      'SELECT * FROM stories WHERE id = $1',
+      [storyId]
+    );
+    
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
+}
+
+async function deleteStory(storyId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query('DELETE FROM stories WHERE id = $1 RETURNING room_id', [storyId]);
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
+}
+
+async function updateStoryOrder(roomId, storyOrders) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const { storyId, orderPosition } of storyOrders) {
+      await client.query(
+        'UPDATE stories SET order_position = $1 WHERE id = $2 AND room_id = $3',
+        [orderPosition, storyId, roomId]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function enforceStoryLimit(client, roomId) {
+  const result = await client.query(
+    'SELECT id FROM stories WHERE room_id = $1 ORDER BY order_position DESC OFFSET 100',
+    [roomId]
+  );
+  
+  if (result.rows.length > 0) {
+    const storyIds = result.rows.map(row => row.id);
+    await client.query(
+      'DELETE FROM stories WHERE id = ANY($1)',
+      [storyIds]
+    );
+  }
+}
+
 module.exports = { 
   pool, 
   initializeDatabase, 
   createRoom, 
   joinRoom, 
-  createStory, 
+  createStory,
+  createBulkStories,
+  updateStory,
+  deleteStory,
+  updateStoryOrder,
   getSimilarStories,
   getStoryVotes,
   submitVote,
