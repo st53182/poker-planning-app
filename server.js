@@ -62,6 +62,8 @@ const upload = multer({
 const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
+const connectedUsers = new Map();
+
 initializeDatabase()
   .then(() => {
     console.log('Database initialization completed successfully');
@@ -444,6 +446,8 @@ io.on('connection', (socket) => {
       socket.participant_id = participant.id;
       socket.room_id = room.id;
       
+      connectedUsers.set(participant.id, socket.id);
+      
       const currentStory = room.current_story_id ? room.stories.find(s => s.id === room.current_story_id) : null;
       
       socket.emit('room_joined', {
@@ -481,9 +485,16 @@ io.on('connection', (socket) => {
     try {
       const { room_id, story_id, participant_id } = data;
       
+      const room = await getRoomById(room_id);
+      if (room.current_story_id) {
+        await updateStoryVotingState(room.current_story_id, 'not_started');
+        await clearStoryVotes(room.current_story_id);
+      }
+      
       await updateRoomCurrentStory(room_id, story_id);
       
       io.to(room_id).emit('current_story_set', { story_id });
+      io.to(room_id).emit('voting_interrupted', { previous_story_id: room.current_story_id });
     } catch (error) {
       socket.emit('error', { message: error.message });
     }
@@ -606,6 +617,22 @@ io.on('connection', (socket) => {
   
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
+    
+    if (socket.participant_id && socket.room_id) {
+      connectedUsers.delete(socket.participant_id);
+      
+      const connectedParticipants = [];
+      for (const [participantId, socketId] of connectedUsers.entries()) {
+        const participantSocket = io.sockets.sockets.get(socketId);
+        if (participantSocket && participantSocket.room_id === socket.room_id) {
+          connectedParticipants.push(participantId);
+        }
+      }
+      
+      io.to(socket.room_id).emit('participants_updated', { 
+        connected_participant_ids: connectedParticipants 
+      });
+    }
   });
 });
 

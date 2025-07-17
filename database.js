@@ -551,6 +551,11 @@ async function claimRoom(roomId, userId) {
       [userId, roomId]
     );
     
+    await client.query(
+      'UPDATE participants SET is_admin = true WHERE room_id = $1 AND user_id = $2',
+      [roomId, userId]
+    );
+    
     console.log('Room claimed successfully');
     return { success: true, message: 'Комната успешно присвоена' };
   } finally {

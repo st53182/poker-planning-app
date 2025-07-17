@@ -48,7 +48,7 @@ paths:
           description: Participant competence
           schema:
             type: string
-            enum: [Frontend, Backend, Fullstack, QA, Analyst, Architect]
+            enum: [Frontend, Backend, Fullstack, QA, Analyst, Architect, "Scrum Master", "Project Manager", "Team Lead"]
       responses:
         '200':
           description: HTML page for planning poker room
@@ -88,7 +88,7 @@ paths:
                   example: "John Doe"
                 creator_competence:
                   type: string
-                  enum: [Frontend, Backend, Fullstack, QA, Analyst, Architect]
+                  enum: [Frontend, Backend, Fullstack, QA, Analyst, Architect, "Scrum Master", "Project Manager", "Team Lead"]
                   description: Creator's competence
                   example: "Fullstack"
       responses:
@@ -201,7 +201,7 @@ components:
           description: Participant name
         competence:
           type: string
-          enum: [Frontend, Backend, Fullstack, QA, Analyst, Architect]
+          enum: [Frontend, Backend, Fullstack, QA, Analyst, Architect, "Scrum Master", "Project Manager", "Team Lead"]
           description: Participant's technical competence
         is_admin:
           type: boolean
@@ -262,7 +262,7 @@ components:
           description: Name of voting participant
         competence:
           type: string
-          enum: [Frontend, Backend, Fullstack, QA, Analyst, Architect]
+          enum: [Frontend, Backend, Fullstack, QA, Analyst, Architect, "Scrum Master", "Project Manager", "Team Lead"]
           description: Competence of voting participant
         points:
           type: number
