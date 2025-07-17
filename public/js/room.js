@@ -28,12 +28,28 @@ class PlanningPokerRoom {
             this.createStory();
         });
 
+        document.getElementById('openImageUploadModal').addEventListener('click', () => {
+            this.openImageUploadModal();
+        });
+
+        document.getElementById('openTextUploadModal').addEventListener('click', () => {
+            this.openTextUploadModal();
+        });
+
         document.getElementById('createStoriesFromImageBtn').addEventListener('click', () => {
             this.createStoriesFromImage();
         });
 
         document.getElementById('createStoriesFromTextBtn').addEventListener('click', () => {
             this.createStoriesFromText();
+        });
+
+        document.getElementById('cancelImageUploadBtn').addEventListener('click', () => {
+            this.closeImageUploadModal();
+        });
+
+        document.getElementById('cancelTextUploadBtn').addEventListener('click', () => {
+            this.closeTextUploadModal();
         });
 
         document.getElementById('storyFilter').addEventListener('change', (e) => {
@@ -759,6 +775,24 @@ class PlanningPokerRoom {
         }
     }
 
+    openImageUploadModal() {
+        document.getElementById('imageUploadModal').classList.remove('hidden');
+    }
+
+    closeImageUploadModal() {
+        document.getElementById('imageUploadModal').classList.add('hidden');
+        document.getElementById('bulkImageUpload').value = '';
+    }
+
+    openTextUploadModal() {
+        document.getElementById('textUploadModal').classList.remove('hidden');
+    }
+
+    closeTextUploadModal() {
+        document.getElementById('textUploadModal').classList.add('hidden');
+        document.getElementById('bulkTextInput').value = '';
+    }
+
     async createStoriesFromImage() {
         const fileInput = document.getElementById('bulkImageUpload');
         const file = fileInput.files[0];
@@ -786,7 +820,7 @@ class PlanningPokerRoom {
             const result = await response.json();
             if (result.success) {
                 this.showToast(`Создано ${result.stories.length} историй из изображения`, 'success');
-                fileInput.value = '';
+                this.closeImageUploadModal();
             } else {
                 this.showError(result.error);
             }
@@ -794,7 +828,7 @@ class PlanningPokerRoom {
             this.showError('Ошибка при создании историй: ' + error.message);
         } finally {
             button.disabled = false;
-            button.textContent = 'Создать истории из изображения';
+            button.textContent = 'Создать истории';
         }
     }
 
@@ -824,7 +858,7 @@ class PlanningPokerRoom {
             const result = await response.json();
             if (result.success) {
                 this.showToast(`Создано ${result.stories.length} историй из текста`, 'success');
-                document.getElementById('bulkTextInput').value = '';
+                this.closeTextUploadModal();
             } else {
                 this.showError(result.error);
             }
@@ -832,8 +866,93 @@ class PlanningPokerRoom {
             this.showError('Ошибка при создании историй: ' + error.message);
         } finally {
             button.disabled = false;
-            button.textContent = 'Создать истории из текста';
+            button.textContent = 'Создать истории';
         }
+    }
+
+    filterStories(filterValue) {
+        const filteredStories = filterValue === 'all' ? this.stories :
+            filterValue === 'unestimated' ? this.stories.filter(s => !s.final_estimate) :
+            this.stories.filter(s => s.final_estimate == filterValue);
+        
+        this.displayFilteredStories(filteredStories);
+    }
+
+    displayFilteredStories(stories) {
+        const container = document.getElementById('storiesList');
+        
+        if (stories.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center py-8">Нет историй, соответствующих фильтру.</p>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        stories.forEach((story, index) => {
+            const storyElement = document.createElement('div');
+            storyElement.draggable = this.isAdmin;
+            storyElement.dataset.storyId = story.id;
+            storyElement.dataset.orderPosition = story.order_position || index;
+            
+            if (this.isAdmin) {
+                storyElement.addEventListener('dragstart', this.handleDragStart.bind(this));
+                storyElement.addEventListener('dragover', this.handleDragOver.bind(this));
+                storyElement.addEventListener('drop', this.handleDrop.bind(this));
+            }
+            
+            const isCurrentStory = this.currentStory && this.currentStory.id === story.id;
+            storyElement.className = `p-4 border rounded-lg cursor-pointer transition-colors ${
+                isCurrentStory ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+            }`;
+            
+            if (this.isAdmin) {
+                storyElement.addEventListener('click', () => this.setCurrentStory(story));
+            }
+            
+            const finalEstimateBadge = story.final_estimate 
+                ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">${story.final_estimate} SP</span>`
+                : '';
+            
+            const stateClasses = {
+                'not_started': 'bg-gray-100 text-gray-800',
+                'voting': 'bg-yellow-100 text-yellow-800',
+                'revealed': 'bg-blue-100 text-blue-800',
+                'finalized': 'bg-green-100 text-green-800'
+            };
+            
+            const stateLabels = {
+                'not_started': 'Не начата',
+                'voting': 'Голосование',
+                'revealed': 'Голоса открыты',
+                'finalized': 'Завершена'
+            };
+            
+            const clickHintText = this.isAdmin && !isCurrentStory ? ' (нажмите для выбора)' : '';
+            const actionButtons = this.isAdmin ? `
+                <div class="flex space-x-2 mt-2">
+                    <button onclick="room.editStory('${story.id}')" class="text-xs text-blue-600 hover:text-blue-800">Редактировать</button>
+                    <button onclick="room.deleteStory('${story.id}')" class="text-xs text-red-600 hover:text-red-800">Удалить</button>
+                </div>
+            ` : '';
+            
+            storyElement.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <h4 class="font-medium text-gray-900">${story.title}${clickHintText}</h4>
+                        ${story.description ? `<p class="text-sm text-gray-600 mt-1">${story.description}</p>` : ''}
+                        ${actionButtons}
+                    </div>
+                    <div class="flex flex-col items-end space-y-2">
+                        ${finalEstimateBadge}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${stateClasses[story.voting_state] || stateClasses['not_started']}">
+                            ${stateLabels[story.voting_state] || stateLabels['not_started']}
+                        </span>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(storyElement);
+        });
     }
 
     editStory(storyId) {
