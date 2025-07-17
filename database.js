@@ -278,19 +278,24 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     let participant;
     
     if (participantResult.rows.length === 0) {
-      const existingCreatorResult = await client.query(
-        'SELECT * FROM participants WHERE room_id = $1 AND name = $2 AND competence = $3 AND is_admin = true',
+      const existingParticipantResult = await client.query(
+        'SELECT * FROM participants WHERE room_id = $1 AND name = $2 AND competence = $3 ORDER BY is_admin DESC, joined_at ASC LIMIT 1',
         [room.id, name, competence]
       );
       
-      if (existingCreatorResult.rows.length > 0) {
+      if (existingParticipantResult.rows.length > 0) {
         await client.query(
           'UPDATE participants SET session_id = $1, user_id = $2 WHERE id = $3',
-          [sessionId, userId, existingCreatorResult.rows[0].id]
+          [sessionId, userId, existingParticipantResult.rows[0].id]
         );
-        participant = existingCreatorResult.rows[0];
+        participant = existingParticipantResult.rows[0];
         participant.session_id = sessionId;
         participant.user_id = userId;
+        
+        await client.query(
+          'DELETE FROM participants WHERE room_id = $1 AND name = $2 AND competence = $3 AND id != $4',
+          [room.id, name, competence, participant.id]
+        );
       } else {
         const participantId = require('uuid').v4();
         await client.query(
