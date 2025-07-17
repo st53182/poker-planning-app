@@ -13,11 +13,17 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
+const OpenAI = require('openai');
 const { 
   initializeDatabase, 
   createRoom, 
   joinRoom, 
-  createStory, 
+  createStory,
+  createBulkStories,
+  updateStory,
+  deleteStory,
+  updateStoryOrder,
   getSimilarStories,
   getStoryVotes,
   submitVote,
@@ -42,6 +48,15 @@ const io = socketIo(server, {
     origin: "*",
     methods: ["GET", "POST"]
   }
+});
+
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+}) : null;
+
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 const PORT = process.env.PORT || 10000;
@@ -150,6 +165,117 @@ app.get('/docs', (req, res) => {
     </body>
     </html>
   `);
+});
+
+app.post('/api/bulk-create-stories-image', upload.single('image'), async (req, res) => {
+  try {
+    const { room_id, participant_id } = req.body;
+    
+    if (!openai) {
+      return res.status(500).json({ error: 'OpenAI API key not configured' });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image uploaded' });
+    }
+
+    const base64Image = req.file.buffer.toString('base64');
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4-vision-preview",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Analyze this screenshot and extract user stories/tasks. Return a JSON array of objects with 'title' and 'description' fields. Focus on actionable items, features, or tasks visible in the image. Each title should be concise (under 100 characters) and each description should provide context (under 500 characters). Return only valid JSON without any markdown formatting."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${req.file.mimetype};base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 1000
+    });
+
+    let stories;
+    try {
+      const content = response.choices[0].message.content.trim();
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      const jsonString = jsonMatch ? jsonMatch[0] : content;
+      stories = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', response.choices[0].message.content);
+      return res.status(500).json({ error: 'Failed to parse AI response' });
+    }
+    
+    if (!Array.isArray(stories)) {
+      return res.status(500).json({ error: 'AI response is not an array' });
+    }
+    
+    const createdStories = await createBulkStories(room_id, stories, participant_id);
+    
+    io.to(room_id).emit('bulk_stories_created', { stories: createdStories });
+    
+    res.json({ success: true, stories: createdStories });
+  } catch (error) {
+    console.error('Error in bulk-create-stories-image:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/bulk-create-stories-text', async (req, res) => {
+  try {
+    const { room_id, participant_id, text } = req.body;
+    
+    if (!openai) {
+      return res.status(500).json({ error: 'OpenAI API key not configured' });
+    }
+    
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({ error: 'No text provided' });
+    }
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "user",
+          content: `Analyze this text and extract user stories/tasks. Return a JSON array of objects with 'title' and 'description' fields. Focus on actionable items, features, or tasks mentioned in the text. Each title should be concise (under 100 characters) and each description should provide context (under 500 characters). Return only valid JSON without any markdown formatting:\n\n${text}`
+        }
+      ],
+      max_tokens: 1000
+    });
+
+    let stories;
+    try {
+      const content = response.choices[0].message.content.trim();
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      const jsonString = jsonMatch ? jsonMatch[0] : content;
+      stories = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', response.choices[0].message.content);
+      return res.status(500).json({ error: 'Failed to parse AI response' });
+    }
+    
+    if (!Array.isArray(stories)) {
+      return res.status(500).json({ error: 'AI response is not an array' });
+    }
+    
+    const createdStories = await createBulkStories(room_id, stories, participant_id);
+    
+    io.to(room_id).emit('bulk_stories_created', { stories: createdStories });
+    
+    res.json({ success: true, stories: createdStories });
+  } catch (error) {
+    console.error('Error in bulk-create-stories-text:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/captcha', (req, res) => {
@@ -443,6 +569,36 @@ io.on('connection', (socket) => {
       await makeParticipantAdmin(target_participant_id);
       
       io.to(room_id).emit('admin_promoted', { participant_id: target_participant_id });
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+    }
+  });
+
+  socket.on('update_story', async (data) => {
+    try {
+      const { story_id, title, description, room_id } = data;
+      const updatedStory = await updateStory(story_id, title, description);
+      io.to(room_id).emit('story_updated', { story: updatedStory });
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+    }
+  });
+
+  socket.on('delete_story', async (data) => {
+    try {
+      const { story_id, room_id } = data;
+      await deleteStory(story_id);
+      io.to(room_id).emit('story_deleted', { story_id });
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+    }
+  });
+
+  socket.on('reorder_stories', async (data) => {
+    try {
+      const { room_id, story_orders } = data;
+      await updateStoryOrder(room_id, story_orders);
+      io.to(room_id).emit('stories_reordered', { story_orders });
     } catch (error) {
       socket.emit('error', { message: error.message });
     }
