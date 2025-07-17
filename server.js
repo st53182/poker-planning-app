@@ -41,7 +41,8 @@ const {
   claimRoom,
   deleteRoom,
   updateParticipantAdminStatus,
-  removeParticipant
+  removeParticipant,
+  cleanupDuplicateParticipants
 } = require('./database');
 
 const app = express();
@@ -504,6 +505,16 @@ io.on('connection', (socket) => {
       io.to(room.id).emit('participants_updated', { 
         connected_participant_ids: connectedParticipants 
       });
+      
+      const cleanupResult = await cleanupDuplicateParticipants(room.id);
+      if (cleanupResult.cleanedCount > 0) {
+        console.log(`Cleaned up ${cleanupResult.cleanedCount} duplicate participants in room ${room.id}`);
+        
+        const updatedRoom = await getRoomById(room.id);
+        io.to(room.id).emit('participants_list_updated', { 
+          participants: updatedRoom.participants 
+        });
+      }
       
     } catch (error) {
       socket.emit('error', { message: error.message });

@@ -222,6 +222,11 @@ class PlanningPokerRoom {
             this.updateParticipantsList();
             this.showToast(`Участник ${data.participant_name} был удален из комнаты`, 'info');
         });
+
+        this.socket.on('participants_list_updated', (data) => {
+            this.participants = data.participants;
+            this.updateParticipantsList();
+        });
     }
 
     joinRoom() {
