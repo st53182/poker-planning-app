@@ -503,14 +503,14 @@ async function makeParticipantAdmin(participantId) {
   }
 }
 
-async function claimRoom(roomId, userId) {
+async function claimRoom(encryptedLink, userId) {
   const client = await pool.connect();
   try {
-    console.log('claimRoom called with:', { roomId, userId });
+    console.log('claimRoom called with:', { encryptedLink, userId });
     
     const roomResult = await client.query(
-      'SELECT id, owner_id FROM rooms WHERE id = $1',
-      [roomId]
+      'SELECT id, owner_id FROM rooms WHERE encrypted_link = $1',
+      [encryptedLink]
     );
     
     console.log('Room query result:', roomResult.rows);
@@ -526,13 +526,13 @@ async function claimRoom(roomId, userId) {
     
     const allParticipantsResult = await client.query(
       'SELECT id, name, competence, is_admin, user_id FROM participants WHERE room_id = $1',
-      [roomId]
+      [room.id]
     );
     console.log('All participants in room:', allParticipantsResult.rows);
     
     const participantResult = await client.query(
       'SELECT id, is_admin FROM participants WHERE room_id = $1 AND user_id = $2',
-      [roomId, userId]
+      [room.id, userId]
     );
     
     console.log('Participant query result:', participantResult.rows);
@@ -545,12 +545,12 @@ async function claimRoom(roomId, userId) {
     
     await client.query(
       'UPDATE rooms SET owner_id = $1 WHERE id = $2',
-      [userId, roomId]
+      [userId, room.id]
     );
     
     await client.query(
       'UPDATE participants SET is_admin = true WHERE room_id = $1 AND user_id = $2',
-      [roomId, userId]
+      [room.id, userId]
     );
     
     console.log('Room claimed successfully');
