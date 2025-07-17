@@ -542,9 +542,6 @@ async function claimRoom(roomId, userId) {
     }
     
     const participant = participantResult.rows[0];
-    if (!participant.is_admin) {
-      throw new Error('Только администраторы могут присвоить комнату');
-    }
     
     await client.query(
       'UPDATE rooms SET owner_id = $1 WHERE id = $2',
@@ -739,6 +736,26 @@ async function enforceStoryLimit(client, roomId) {
   }
 }
 
+async function deleteRoom(roomId, userId) {
+  const client = await pool.connect();
+  try {
+    const participantResult = await client.query(
+      'SELECT is_admin FROM participants WHERE room_id = $1 AND user_id = $2',
+      [roomId, userId]
+    );
+    
+    if (participantResult.rows.length === 0 || !participantResult.rows[0].is_admin) {
+      throw new Error('Только администраторы могут удалить комнату');
+    }
+    
+    await client.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+    
+    return { success: true, message: 'Комната успешно удалена' };
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = { 
   pool, 
   initializeDatabase, 
@@ -763,5 +780,6 @@ module.exports = {
   getUserById,
   getUserRooms,
   updateUserLastLogin,
-  claimRoom
+  claimRoom,
+  deleteRoom
 };
