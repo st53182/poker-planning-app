@@ -259,6 +259,8 @@ async function createRoom(name, estimationType, creatorName, creatorCompetence, 
 async function joinRoom(encryptedLink, name, competence, sessionId, userId = null) {
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+    
     const roomResult = await client.query(
       'SELECT * FROM rooms WHERE encrypted_link = $1',
       [encryptedLink]
@@ -269,6 +271,17 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     }
     
     const room = roomResult.rows[0];
+    
+    await client.query(`
+      DELETE FROM participants 
+      WHERE room_id = $1 AND name = $2 AND competence = $3 
+      AND id NOT IN (
+        SELECT id FROM participants 
+        WHERE room_id = $1 AND name = $2 AND competence = $3 
+        ORDER BY is_admin DESC, joined_at ASC 
+        LIMIT 1
+      )
+    `, [room.id, name, competence]);
     
     let participantResult = await client.query(
       'SELECT * FROM participants WHERE room_id = $1 AND session_id = $2',
@@ -291,11 +304,6 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
         participant = existingParticipantResult.rows[0];
         participant.session_id = sessionId;
         participant.user_id = userId;
-        
-        await client.query(
-          'DELETE FROM participants WHERE room_id = $1 AND name = $2 AND competence = $3 AND id != $4',
-          [room.id, name, competence, participant.id]
-        );
       } else {
         const participantId = require('uuid').v4();
         await client.query(
@@ -325,6 +333,8 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       participant.user_id = userId;
     }
     
+    await client.query('COMMIT');
+    
     const participantsResult = await client.query(
       'SELECT * FROM participants WHERE room_id = $1 ORDER BY joined_at',
       [room.id]
@@ -339,6 +349,9 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     room.stories = storiesResult.rows;
     
     return { room, participant };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   } finally {
     client.release();
   }
