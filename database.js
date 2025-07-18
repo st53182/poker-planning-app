@@ -277,17 +277,6 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
         DELETE FROM participants 
         WHERE room_id = $1 AND user_id = $2
       `, [room.id, userId]);
-    } else {
-      await client.query(`
-        DELETE FROM participants 
-        WHERE room_id = $1 AND name = $2 AND competence = $3 
-        AND id NOT IN (
-          SELECT id FROM participants 
-          WHERE room_id = $1 AND name = $2 AND competence = $3 
-          ORDER BY is_admin DESC, joined_at ASC 
-          LIMIT 1
-        )
-      `, [room.id, name, competence]);
     }
     
     let participantResult = await client.query(
@@ -848,31 +837,55 @@ async function removeParticipant(participantId, adminParticipantId) {
   }
 }
 
-async function cleanupDuplicateParticipants(roomId) {
+async function cleanupDuplicateParticipants(roomId, currentParticipantId = null) {
   const client = await pool.connect();
   try {
-    const duplicatesResult = await client.query(`
-      SELECT name, competence, array_agg(id ORDER BY is_admin DESC, joined_at ASC) as participant_ids
+    const userIdDuplicatesResult = await client.query(`
+      SELECT user_id, array_agg(id ORDER BY is_admin DESC, joined_at ASC) as participant_ids
       FROM participants 
-      WHERE room_id = $1 
-      GROUP BY name, competence 
+      WHERE room_id = $1 AND user_id IS NOT NULL
+      GROUP BY user_id 
       HAVING COUNT(*) > 1
     `, [roomId]);
     
     let cleanedCount = 0;
-    for (const duplicate of duplicatesResult.rows) {
+    for (const duplicate of userIdDuplicatesResult.rows) {
       const [keepId, ...removeIds] = duplicate.participant_ids;
       
-      if (removeIds.length > 0) {
+      const filteredRemoveIds = removeIds.filter(id => id !== currentParticipantId);
+      
+      if (filteredRemoveIds.length > 0) {
         await client.query(
           'DELETE FROM participants WHERE id = ANY($1)',
-          [removeIds]
+          [filteredRemoveIds]
         );
-        cleanedCount += removeIds.length;
+        cleanedCount += filteredRemoveIds.length;
       }
     }
     
-    return { cleanedCount, duplicatesFound: duplicatesResult.rows.length };
+    const nameDuplicatesResult = await client.query(`
+      SELECT name, competence, array_agg(id ORDER BY is_admin DESC, joined_at ASC) as participant_ids
+      FROM participants 
+      WHERE room_id = $1 AND user_id IS NULL
+      GROUP BY name, competence 
+      HAVING COUNT(*) > 1
+    `, [roomId]);
+    
+    for (const duplicate of nameDuplicatesResult.rows) {
+      const [keepId, ...removeIds] = duplicate.participant_ids;
+      
+      const filteredRemoveIds = removeIds.filter(id => id !== currentParticipantId);
+      
+      if (filteredRemoveIds.length > 0) {
+        await client.query(
+          'DELETE FROM participants WHERE id = ANY($1)',
+          [filteredRemoveIds]
+        );
+        cleanedCount += filteredRemoveIds.length;
+      }
+    }
+    
+    return { cleanedCount, duplicatesFound: userIdDuplicatesResult.rows.length + nameDuplicatesResult.rows.length };
   } finally {
     client.release();
   }
