@@ -249,9 +249,11 @@ class PlanningPokerRoom {
             return;
         }
         
+        if (!authToken) {
+            localStorage.removeItem('session_id');
+        }
         localStorage.removeItem('participant_name');
         localStorage.removeItem('participant_competence');
-        localStorage.removeItem('session_id');
         
         const isCreator = urlParams.has('name') && urlParams.has('competence');
         
