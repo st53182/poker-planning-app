@@ -318,7 +318,7 @@ class PlanningPokerRoom {
         this.stories = data.stories;
         this.currentStory = data.current_story;
         this.isAdmin = data.participant.is_admin;
-        this.connectedParticipantIds = [data.participant.id];
+        this.connectedParticipantIds = data.connected_participant_ids || data.participants.map(p => p.id);
 
         document.getElementById('roomName').textContent = data.room_name || 'Комната Планирования';
         document.getElementById('estimationType').textContent = `Тип оценки: ${data.estimation_type === 'story_points' ? 'Стори поинты' : 'Часы'}`;
