@@ -304,7 +304,9 @@ class PlanningPokerRoom {
     }
 
     generateSessionId() {
-        const sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const timestamp = Date.now().toString(36);
+        const random = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const sessionId = timestamp + '_' + random;
         localStorage.setItem('session_id', sessionId);
         return sessionId;
     }
