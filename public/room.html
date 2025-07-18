@@ -338,55 +338,15 @@
                 <button 
                     id="joinRoomBtn"
                     class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    data-translate="room.enter_room"
                 >
-                    Войти в комнату</button>
+                    Войти в комнату
+                </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Join Room Modal -->
-    <div id="joinRoomModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 class="text-xl font-bold text-gray-900 mb-4" data-translate="room.join_room">Присоединиться к комнате</h2>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.join_name">Ваше имя</label>
-                    <input 
-                        id="joinName" 
-                        type="text" 
-                        placeholder="Введите ваше имя"
-                        data-translate="room.join_name_placeholder"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.join_competence">Ваша компетенция</label>
-                    <select id="joinCompetence" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="Frontend" data-translate="competences.frontend">Frontend</option>
-                        <option value="Backend" data-translate="competences.backend">Backend</option>
-                        <option value="Fullstack" data-translate="competences.fullstack">Fullstack</option>
-                        <option value="QA" data-translate="competences.qa">QA</option>
-                        <option value="Analyst" data-translate="competences.analyst">Аналитик</option>
-                        <option value="Architect" data-translate="competences.architect">Архитектор</option>
-                        <option value="Scrum Master" data-translate="competences.scrum_master">Скрам Мастер</option>
-                        <option value="Project Manager" data-translate="competences.project_manager">Менеджер проекта</option>
-                        <option value="Team Lead" data-translate="competences.team_lead">Тимлид</option>
-                    </select>
-                </div>
-                
-                <button 
-                    id="joinRoomBtn"
-                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-                    data-translate="room.enter_room"
-                >
-                    Войти в комнату
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- Image Upload Modal -->
     <div id="imageUploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
