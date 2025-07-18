@@ -818,7 +818,37 @@ async function removeParticipant(participantId, adminParticipantId) {
   }
 }
 
-module.exports = { 
+async function cleanupDuplicateParticipants(roomId) {
+  const client = await pool.connect();
+  try {
+    const duplicatesResult = await client.query(`
+      SELECT name, competence, array_agg(id ORDER BY is_admin DESC, joined_at ASC) as participant_ids
+      FROM participants 
+      WHERE room_id = $1 
+      GROUP BY name, competence 
+      HAVING COUNT(*) > 1
+    `, [roomId]);
+    
+    let cleanedCount = 0;
+    for (const duplicate of duplicatesResult.rows) {
+      const [keepId, ...removeIds] = duplicate.participant_ids;
+      
+      if (removeIds.length > 0) {
+        await client.query(
+          'DELETE FROM participants WHERE id = ANY($1)',
+          [removeIds]
+        );
+        cleanedCount += removeIds.length;
+      }
+    }
+    
+    return { cleanedCount, duplicatesFound: duplicatesResult.rows.length };
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = {
   pool, 
   initializeDatabase, 
   createRoom, 
@@ -845,5 +875,6 @@ module.exports = {
   claimRoom,
   deleteRoom,
   updateParticipantAdminStatus,
-  removeParticipant
+  removeParticipant,
+  cleanupDuplicateParticipants
 };
