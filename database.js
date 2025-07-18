@@ -330,6 +330,7 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       }
     } else {
       participant = participantResult.rows[0];
+      const originalIsAdmin = participant.is_admin;
       await client.query(
         'UPDATE participants SET name = $1, competence = $2, user_id = $3 WHERE id = $4',
         [name, competence, userId, participant.id]
@@ -337,9 +338,8 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       participant.name = name;
       participant.competence = competence;
       participant.user_id = userId;
+      participant.is_admin = originalIsAdmin;
     }
-    
-    console.log('Cleaning up duplicates for room:', room.id, 'current participant:', participant.id);
     
     const userIdDuplicatesResult = await client.query(`
       SELECT user_id, array_agg(id ORDER BY is_admin DESC, joined_at ASC) as participant_ids
@@ -354,7 +354,6 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       const filteredRemoveIds = removeIds.filter(id => id !== participant.id);
       
       if (filteredRemoveIds.length > 0) {
-        console.log('Removing user_id duplicates:', filteredRemoveIds);
         await client.query(
           'DELETE FROM participants WHERE id = ANY($1)',
           [filteredRemoveIds]
@@ -375,7 +374,6 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       const filteredRemoveIds = removeIds.filter(id => id !== participant.id);
       
       if (filteredRemoveIds.length > 0) {
-        console.log('Removing name duplicates:', filteredRemoveIds);
         await client.query(
           'DELETE FROM participants WHERE id = ANY($1)',
           [filteredRemoveIds]
