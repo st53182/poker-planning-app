@@ -380,7 +380,8 @@ app.get('/api/user/rooms', authenticateToken, async (req, res) => {
 
 app.post('/api/create-room', async (req, res) => {
   try {
-    const { name, estimation_type, creator_name, creator_competence } = req.body;
+    const { room_name, estimation_type, creator_name, creator_competence } = req.body;
+    const name = room_name;
     
     let ownerId = null;
     const authHeader = req.headers['authorization'];
