@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход - Planning Poker</title>
+    <title data-translate="login.title">Вход - Planning Poker</title>
+    <meta name="title-key" content="login.title">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -19,16 +20,17 @@
                     <a href="/" class="text-xl font-bold text-blue-600">Planning Poker Online</a>
                 </div>
                 <div class="flex items-center space-x-6">
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.maturity_analysis">
                         Анализ уровня зрелости команды
                     </a>
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.disc_motivation">
                         Мотивация по DISC
                     </a>
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.conflict_resolution">
                         Разрешение конфликтов
                     </a>
-                    <a href="/register" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Регистрация</a>
+                    <div id="languageSwitcher"></div>
+                    <a href="/register" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-translate="nav.register">Регистрация</a>
                 </div>
             </div>
         </div>
@@ -37,13 +39,13 @@
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
             <div class="text-center mb-6">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Вход</h1>
-                <p class="text-gray-600">Войдите в ваш аккаунт</p>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2" data-translate="login.heading">Вход</h1>
+                <p class="text-gray-600" data-translate="login.subtitle">Войдите в ваш аккаунт</p>
             </div>
 
             <form id="loginForm" class="space-y-4">
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2" data-translate="login.email">
                         Email
                     </label>
                     <input 
@@ -52,12 +54,13 @@
                         name="email" 
                         required
                         placeholder="Введите ваш email"
+                        data-translate="login.email_placeholder"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
 
                 <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2" data-translate="login.password">
                         Пароль
                     </label>
                     <input 
@@ -66,6 +69,7 @@
                         name="password" 
                         required
                         placeholder="Введите ваш пароль"
+                        data-translate="login.password_placeholder"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
@@ -73,6 +77,7 @@
                 <button 
                     type="submit" 
                     class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    data-translate="login.login_button"
                 >
                     Войти
                 </button>
@@ -80,14 +85,14 @@
 
             <div class="mt-4 text-center">
                 <p class="text-gray-600">
-                    Нет аккаунта? 
-                    <a id="registerLink" href="/register" class="text-blue-600 hover:text-blue-700">Зарегистрироваться</a>
+                    <span data-translate="login.no_account">Нет аккаунта?</span> 
+                    <a id="registerLink" href="/register" class="text-blue-600 hover:text-blue-700" data-translate="login.register_link">Зарегистрироваться</a>
                 </p>
             </div>
 
             <div id="loading" class="hidden text-center py-4">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <p class="mt-2 text-gray-600">Вход...</p>
+                <p class="mt-2 text-gray-600" data-translate="login.logging_in">Вход...</p>
             </div>
 
             <div id="error" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
@@ -142,7 +147,8 @@
                         window.location.href = '/dashboard';
                     }
                 } else {
-                    throw new Error(result.error || 'Ошибка входа');
+                    const errorMessage = result.error || (window.translationManager ? window.translationManager.t('login.login_error') : 'Ошибка входа');
+                    throw new Error(errorMessage);
                 }
             } catch (error) {
                 document.getElementById('loading').classList.add('hidden');
@@ -152,5 +158,6 @@
             }
         });
     </script>
+    <script src="/js/translations.js"></script>
 </body>
 </html>

@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Покер Планирования - Комната</title>
+    <title data-translate="room.title">Покер Планирования - Комната</title>
+    <meta name="title-key" content="room.title">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -32,15 +33,16 @@
                     <h1 class="text-xl font-bold text-blue-600">Planning Poker Online</h1>
                 </div>
                 <div class="flex items-center space-x-6">
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.maturity_analysis">
                         Анализ уровня зрелости команды
                     </a>
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.disc_motivation">
                         Мотивация по DISC
                     </a>
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.conflict_resolution">
                         Разрешение конфликтов
                     </a>
+                    <div id="languageSwitcher"></div>
                 </div>
             </div>
         </div>
@@ -50,20 +52,21 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center py-4">
                 <div>
-                    <h1 id="roomName" class="text-2xl font-bold text-gray-900">Комната Планирования</h1>
-                    <p id="estimationType" class="text-sm text-gray-600">Тип оценки: Стори поинты</p>
+                    <h1 id="roomName" class="text-2xl font-bold text-gray-900" data-translate="room.planning_room">Комната Планирования</h1>
+                    <p id="estimationType" class="text-sm text-gray-600" data-translate="room.estimation_type_story">Тип оценки: Стори поинты</p>
                 </div>
                 
                 <div class="flex items-center space-x-4">
                     <div id="authLinks" class="flex items-center space-x-4">
-                        <a id="loginLink" href="/login" class="text-gray-600 hover:text-blue-600 transition-colors">Войти</a>
-                        <a id="registerLink" href="/register" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Регистрация</a>
+                        <a id="loginLink" href="/login" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.login">Войти</a>
+                        <a id="registerLink" href="/register" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-translate="nav.register">Регистрация</a>
                     </div>
                     
                     <a 
                         id="dashboardBtn" 
                         href="/dashboard"
                         class="hidden px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                        data-translate="nav.my_rooms"
                     >
                         Мои комнаты
                     </a>
@@ -72,12 +75,14 @@
                         id="claimRoomBtn" 
                         class="hidden px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
                         style="display: none;"
+                        data-translate="room.claim_room"
                     >
                         Присвоить комнату
                     </button>
                     <button 
                         id="deleteRoomBtn" 
                         class="hidden px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                        data-translate="room.delete_room"
                     >
                         Удалить комнату
                     </button>
@@ -85,13 +90,14 @@
                     <button 
                         id="copyLinkBtn" 
                         class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                        data-translate="room.copy_link"
                     >
                         Скопировать ссылку
                     </button>
                     
                     <div id="userInfo" class="text-sm text-gray-600">
                         <span id="userName">Anonymous</span> (<span id="userCompetence">Fullstack</span>)
-                        <span id="adminBadge" class="hidden ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        <span id="adminBadge" class="hidden ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs" data-translate="room.admin">
                             Админ
                         </span>
                     </div>
@@ -113,7 +119,7 @@
                         </div>
                         
                         <div class="flex items-center space-x-2">
-                            <span id="votingStateBadge" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                            <span id="votingStateBadge" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800" data-translate="room.voting_states.not_started">
                                 Не начато
                             </span>
                         </div>
@@ -123,6 +129,7 @@
                         <button 
                             id="startVotingBtn"
                             class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                            data-translate="room.start_voting"
                         >
                             Начать голосование
                         </button>
@@ -130,6 +137,7 @@
                         <button 
                             id="revealVotesBtn"
                             class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                            data-translate="room.reveal_votes"
                         >
                             Показать голоса (<span id="voteCount">0</span>/<span id="participantCount">0</span>)
                         </button>
@@ -140,17 +148,20 @@
                                 type="number" 
                                 step="0.5"
                                 placeholder="Финальная оценка"
+                                data-translate="room.final_estimate_placeholder"
                                 class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <button 
                                 id="finalizeBtn"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                data-translate="room.finalize"
                             >
                                 Завершить
                             </button>
                             <button 
                                 id="voteAgainBtn"
                                 class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                                data-translate="room.vote_again"
                             >
                                 Голосовать снова
                             </button>
@@ -158,27 +169,28 @@
                     </div>
 
                     <div id="votingSection" class="hidden mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Ваш голос</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4" data-translate="room.your_vote">Ваш голос</h3>
                         <div id="votingCards" class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-11 gap-3 mb-4">
                         </div>
                         
                         <button 
                             id="submitVoteBtn"
                             class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                            data-translate="room.submit_vote"
                         >
                             Отправить голос: <span id="selectedVoteValue"></span>
                         </button>
                     </div>
 
                     <div id="revealedVotesSection" class="hidden mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Результаты голосования</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4" data-translate="room.voting_results">Результаты голосования</h3>
                         <div id="revealedVotes" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         </div>
                     </div>
 
                     <div id="similarStoriesSection" class="hidden mt-4 p-4 bg-blue-50 rounded-lg">
                         <h4 class="text-sm font-medium text-blue-900 mb-2">
-                            Похожие истории с оценкой <span id="similarVoteValue"></span> <span id="similarEstimationType">поинтов</span>:
+                            <span data-translate="room.similar_stories">Похожие истории с оценкой</span> <span id="similarVoteValue"></span> <span id="similarEstimationType" data-translate="room.points">поинтов</span>:
                         </h4>
                         <div id="similarStoriesList" class="space-y-1">
                         </div>
@@ -186,24 +198,26 @@
                 </div>
 
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Добавить новую историю</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4" data-translate="room.add_new_story">Добавить новую историю</h3>
                     
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Название истории</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.story_title">Название истории</label>
                             <input 
                                 id="newStoryTitle"
                                 type="text" 
                                 placeholder="Введите название истории"
+                                data-translate="room.story_title_placeholder"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Описание (необязательно)</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.story_description">Описание (необязательно)</label>
                             <textarea 
                                 id="newStoryDescription"
                                 placeholder="Введите описание истории"
+                                data-translate="room.story_description_placeholder"
                                 rows="3"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             ></textarea>
@@ -212,6 +226,7 @@
                         <button 
                             id="createStoryBtn"
                             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            data-translate="room.add_story"
                         >
                             Добавить историю
                         </button>
@@ -219,62 +234,62 @@
                 </div>
 
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Массовое создание историй</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4" data-translate="room.bulk_create">Массовое создание историй</h3>
                     
                     <div class="flex space-x-4">
                         <button id="openImageUploadModal" class="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
-                            <span>Из изображения</span>
+                            <span data-translate="room.from_image">Из изображения</span>
                         </button>
                         
                         <button id="openTextUploadModal" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
-                            <span>Из текста</span>
+                            <span data-translate="room.from_text">Из текста</span>
                         </button>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Все истории</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4" data-translate="room.all_stories">Все истории</h3>
                     <div id="adminHint" class="hidden mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p class="text-sm text-blue-800">
+                        <p class="text-sm text-blue-800" data-translate="room.admin_hint">
                             💡 <strong>Подсказка:</strong> Нажмите на любую историю ниже, чтобы начать её оценку
                         </p>
                     </div>
                     
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Фильтр по оценке</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.filter_by_estimate">Фильтр по оценке</label>
                         <select id="storyFilter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="all">Все истории</option>
-                            <option value="unestimated">Неоценённые</option>
-                            <option value="0.5">0.5 поинтов</option>
-                            <option value="1">1 поинт</option>
-                            <option value="2">2 поинта</option>
-                            <option value="3">3 поинта</option>
-                            <option value="5">5 поинтов</option>
-                            <option value="8">8 поинтов</option>
-                            <option value="13">13 поинтов</option>
-                            <option value="21">21 поинт</option>
-                            <option value="34">34 поинта</option>
+                            <option value="all" data-translate="room.all_stories_filter">Все истории</option>
+                            <option value="unestimated" data-translate="room.unestimated">Неоценённые</option>
+                            <option value="0.5" data-translate="points_labels.0.5">0.5 поинтов</option>
+                            <option value="1" data-translate="points_labels.1">1 поинт</option>
+                            <option value="2" data-translate="points_labels.2">2 поинта</option>
+                            <option value="3" data-translate="points_labels.3">3 поинта</option>
+                            <option value="5" data-translate="points_labels.5">5 поинтов</option>
+                            <option value="8" data-translate="points_labels.8">8 поинтов</option>
+                            <option value="13" data-translate="points_labels.13">13 поинтов</option>
+                            <option value="21" data-translate="points_labels.21">21 поинт</option>
+                            <option value="34" data-translate="points_labels.34">34 поинта</option>
                         </select>
                     </div>
                     
                     <div id="storiesList" class="space-y-3">
-                        <p class="text-gray-500 text-center py-8">Пока нет историй. Добавьте первую историю выше!</p>
+                        <p class="text-gray-500 text-center py-8" data-translate="room.no_stories">Пока нет историй. Добавьте первую историю выше!</p>
                     </div>
                 </div>
             </div>
 
             <div class="space-y-6">
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Участники (<span id="participantsCount">0</span>)</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4" data-translate="room.participants">Участники (<span id="participantsCount">0</span>)</h3>
                     
                     <div id="participantsList" class="space-y-3">
-                        <p class="text-gray-500 text-center py-8">Пока нет участников.</p>
+                        <p class="text-gray-500 text-center py-8" data-translate="room.no_participants">Пока нет участников.</p>
                     </div>
                 </div>
             </div>
@@ -283,45 +298,89 @@
 
     <div id="errorToast" class="hidden fixed bottom-4 right-4 p-4 bg-red-50 border border-red-200 rounded-lg shadow-lg">
         <p id="errorMessage" class="text-red-800"></p>
-        <button id="dismissError" class="mt-2 text-sm text-red-600 hover:text-red-800">Закрыть</button>
+        <button id="dismissError" class="mt-2 text-sm text-red-600 hover:text-red-800" data-translate="room.close">Закрыть</button>
     </div>
 
     <div id="joinModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 class="text-xl font-bold text-gray-900 mb-4">Присоединиться к комнате</h2>
+            <h2 class="text-xl font-bold text-gray-900 mb-4" data-translate="room.join_room">Присоединиться к комнате</h2>
             
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Ваше имя</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.join_name">Ваше имя</label>
                     <input 
                         id="joinName"
                         type="text" 
                         placeholder="Введите ваше имя"
+                        data-translate="room.join_name_placeholder"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Ваша компетенция</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.join_competence">Ваша компетенция</label>
                     <select 
                         id="joinCompetence"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="Frontend">Frontend</option>
-                        <option value="Backend">Backend</option>
-                        <option value="Fullstack">Fullstack</option>
-                        <option value="QA">QA</option>
-                        <option value="Analyst">Аналитик</option>
-                        <option value="Architect">Архитектор</option>
-                        <option value="Scrum Master">Скрам Мастер</option>
-                        <option value="Project Manager">Менеджер проекта</option>
-                        <option value="Team Lead">Тимлид</option>
+                        <option value="Frontend" data-translate="competences.frontend">Frontend</option>
+                        <option value="Backend" data-translate="competences.backend">Backend</option>
+                        <option value="Fullstack" data-translate="competences.fullstack">Fullstack</option>
+                        <option value="QA" data-translate="competences.qa">QA</option>
+                        <option value="Analyst" data-translate="competences.analyst">Аналитик</option>
+                        <option value="Architect" data-translate="competences.architect">Архитектор</option>
+                        <option value="Scrum Master" data-translate="competences.scrum_master">Скрам Мастер</option>
+                        <option value="Project Manager" data-translate="competences.project_manager">Менеджер проекта</option>
+                        <option value="Team Lead" data-translate="competences.team_lead">Тимлид</option>
                     </select>
                 </div>
                 
                 <button 
                     id="joinRoomBtn"
                     class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                >
+                    Войти в комнату</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Room Modal -->
+    <div id="joinRoomModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 class="text-xl font-bold text-gray-900 mb-4" data-translate="room.join_room">Присоединиться к комнате</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.join_name">Ваше имя</label>
+                    <input 
+                        id="joinName" 
+                        type="text" 
+                        placeholder="Введите ваше имя"
+                        data-translate="room.join_name_placeholder"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.join_competence">Ваша компетенция</label>
+                    <select id="joinCompetence" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Frontend" data-translate="competences.frontend">Frontend</option>
+                        <option value="Backend" data-translate="competences.backend">Backend</option>
+                        <option value="Fullstack" data-translate="competences.fullstack">Fullstack</option>
+                        <option value="QA" data-translate="competences.qa">QA</option>
+                        <option value="Analyst" data-translate="competences.analyst">Аналитик</option>
+                        <option value="Architect" data-translate="competences.architect">Архитектор</option>
+                        <option value="Scrum Master" data-translate="competences.scrum_master">Скрам Мастер</option>
+                        <option value="Project Manager" data-translate="competences.project_manager">Менеджер проекта</option>
+                        <option value="Team Lead" data-translate="competences.team_lead">Тимлид</option>
+                    </select>
+                </div>
+                
+                <button 
+                    id="joinRoomBtn"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+                    data-translate="room.enter_room"
                 >
                     Войти в комнату
                 </button>
@@ -332,11 +391,11 @@
     <!-- Image Upload Modal -->
     <div id="imageUploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 class="text-xl font-bold text-gray-900 mb-4">Создать истории из изображения</h2>
+            <h2 class="text-xl font-bold text-gray-900 mb-4" data-translate="room.upload_image">Загрузить изображение</h2>
             
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Загрузить изображение</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.select_image">Выберите изображение для анализа</label>
                     <input type="file" id="bulkImageUpload" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                     <p class="text-sm text-gray-500 mt-1">Поддерживаются форматы: JPG, PNG, GIF (макс. 10MB)</p>
                 </div>
@@ -345,12 +404,14 @@
                     <button 
                         id="createStoriesFromImageBtn"
                         class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+                        data-translate="room.analyze_image"
                     >
-                        Создать истории
+                        Анализировать изображение
                     </button>
                     <button 
                         id="cancelImageUploadBtn"
                         class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors"
+                        data-translate="room.cancel"
                     >
                         Отмена
                     </button>
@@ -362,30 +423,32 @@
     <!-- Text Upload Modal -->
     <div id="textUploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
-            <h2 class="text-xl font-bold text-gray-900 mb-4">Создать истории из текста</h2>
+            <h2 class="text-xl font-bold text-gray-900 mb-4" data-translate="room.bulk_text">Массовое создание из текста</h2>
             
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Вставить текст с задачами</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.enter_stories">Введите истории (по одной на строку)</label>
                     <textarea 
                         id="bulkTextInput" 
                         placeholder="Вставьте текст с задачами из таск-трекера или любого другого источника..." 
                         rows="6" 
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     ></textarea>
-                    <p class="text-sm text-gray-500 mt-1">ИИ автоматически извлечет задачи и создаст истории</p>
+                    <p class="text-sm text-gray-500 mt-1" data-translate="room.ai_analysis">ИИ анализ историй</p>
                 </div>
                 
                 <div class="flex space-x-3">
                     <button 
                         id="createStoriesFromTextBtn"
                         class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        data-translate="room.create_stories"
                     >
                         Создать истории
                     </button>
                     <button 
                         id="cancelTextUploadBtn"
                         class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors"
+                        data-translate="room.cancel"
                     >
                         Отмена
                     </button>
@@ -397,11 +460,11 @@
     <!-- Edit Story Modal -->
     <div id="editStoryModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 class="text-xl font-bold text-gray-900 mb-4">Редактировать историю</h2>
+            <h2 class="text-xl font-bold text-gray-900 mb-4" data-translate="room.story_title">Редактировать историю</h2>
             
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Название истории</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.story_title">Название истории</label>
                     <input 
                         id="editStoryTitle"
                         type="text" 
@@ -410,7 +473,7 @@
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Описание</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="room.story_description">Описание</label>
                     <textarea 
                         id="editStoryDescription"
                         rows="3"
@@ -423,11 +486,18 @@
                         id="saveStoryBtn"
                         class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
                     >
-                        Сохранить
+                        Сохранить</button>
+                    <button 
+                        id="cancelEditBtn"
+                        class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors"
+                        data-translate="room.cancel"
+                    >
+                        Отмена
                     </button>
                     <button 
                         id="cancelEditBtn"
                         class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors"
+                        data-translate="room.cancel"
                     >
                         Отмена
                     </button>
@@ -437,5 +507,6 @@
     </div>
 
     <script src="/js/room.js"></script>
+    <script src="/js/translations.js"></script>
 </body>
 </html>
