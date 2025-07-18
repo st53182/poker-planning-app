@@ -272,73 +272,81 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     
     const room = roomResult.rows[0];
     
+    let existingUserParticipant = null;
     if (userId) {
-      await client.query(`
-        DELETE FROM participants 
-        WHERE room_id = $1 AND user_id = $2
-      `, [room.id, userId]);
+      const existingResult = await client.query(
+        'SELECT * FROM participants WHERE room_id = $1 AND user_id = $2',
+        [room.id, userId]
+      );
+      if (existingResult.rows.length > 0) {
+        existingUserParticipant = existingResult.rows[0];
+      }
     }
-    
+
     let participantResult = await client.query(
       'SELECT * FROM participants WHERE room_id = $1 AND session_id = $2',
       [room.id, sessionId]
     );
-    
+
     let participant;
-    
-    if (participantResult.rows.length === 0) {
-      let existingParticipantResult;
-      if (userId) {
-        existingParticipantResult = await client.query(
-          'SELECT * FROM participants WHERE room_id = $1 AND user_id = $2 ORDER BY is_admin DESC, joined_at ASC LIMIT 1',
-          [room.id, userId]
-        );
-      }
+
+    if (existingUserParticipant) {
+      await client.query(
+        'UPDATE participants SET session_id = $1, name = $2, competence = $3 WHERE id = $4',
+        [sessionId, name, competence, existingUserParticipant.id]
+      );
+      participant = existingUserParticipant;
+      participant.session_id = sessionId;
+      participant.name = name;
+      participant.competence = competence;
       
-      if (!existingParticipantResult || existingParticipantResult.rows.length === 0) {
-        existingParticipantResult = await client.query(
-          'SELECT * FROM participants WHERE room_id = $1 AND name = $2 AND competence = $3 ORDER BY is_admin DESC, joined_at ASC LIMIT 1',
-          [room.id, name, competence]
+      if (room.owner_id === userId && !participant.is_admin) {
+        await client.query(
+          'UPDATE participants SET is_admin = true WHERE id = $1',
+          [participant.id]
         );
+        participant.is_admin = true;
       }
+    } else if (participantResult.rows.length === 0) {
+      const participantId = require('uuid').v4();
+      const isAdmin = userId && room.owner_id === userId;
       
-      if (existingParticipantResult.rows.length > 0) {
-        await client.query(
-          'UPDATE participants SET session_id = $1, user_id = $2 WHERE id = $3',
-          [sessionId, userId, existingParticipantResult.rows[0].id]
-        );
-        participant = existingParticipantResult.rows[0];
-        participant.session_id = sessionId;
-        participant.user_id = userId;
-      } else {
-        const participantId = require('uuid').v4();
-        await client.query(
-          'INSERT INTO participants (id, room_id, name, competence, is_admin, session_id, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          [participantId, room.id, name, competence, false, sessionId, userId]
-        );
-        
-        participant = {
-          id: participantId,
-          room_id: room.id,
-          name: name,
-          competence: competence,
-          is_admin: false,
-          session_id: sessionId,
-          user_id: userId,
-          joined_at: new Date()
-        };
-      }
+      await client.query(
+        'INSERT INTO participants (id, room_id, name, competence, is_admin, session_id, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [participantId, room.id, name, competence, isAdmin, sessionId, userId]
+      );
+      
+      participant = {
+        id: participantId,
+        room_id: room.id,
+        name: name,
+        competence: competence,
+        is_admin: isAdmin,
+        session_id: sessionId,
+        user_id: userId,
+        joined_at: new Date()
+      };
     } else {
       participant = participantResult.rows[0];
       const originalIsAdmin = participant.is_admin;
+      
       await client.query(
         'UPDATE participants SET name = $1, competence = $2, user_id = $3 WHERE id = $4',
         [name, competence, userId, participant.id]
       );
+      
       participant.name = name;
       participant.competence = competence;
       participant.user_id = userId;
       participant.is_admin = originalIsAdmin;
+      
+      if (userId && room.owner_id === userId && !participant.is_admin) {
+        await client.query(
+          'UPDATE participants SET is_admin = true WHERE id = $1',
+          [participant.id]
+        );
+        participant.is_admin = true;
+      }
     }
     
     await client.query('COMMIT');
