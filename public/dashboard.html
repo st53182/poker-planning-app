@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мои комнаты - Planning Poker</title>
+    <title data-translate="dashboard.title">Мои комнаты - Planning Poker</title>
+    <meta name="title-key" content="dashboard.title">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -19,18 +20,19 @@
                     <a href="/" class="text-xl font-bold text-blue-600">Planning Poker Online</a>
                 </div>
                 <div class="flex items-center space-x-6">
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.maturity_analysis">
                         Анализ уровня зрелости команды
                     </a>
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.disc_motivation">
                         Мотивация по DISC
                     </a>
-                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <a href="https://growboard.ru" target="_blank" class="text-gray-600 hover:text-blue-600 transition-colors" data-translate="nav.conflict_resolution">
                         Разрешение конфликтов
                     </a>
+                    <div id="languageSwitcher"></div>
                     <div class="flex items-center space-x-4">
                         <span id="userName" class="text-gray-700"></span>
-                        <button id="logoutBtn" class="text-gray-600 hover:text-red-600 transition-colors">Выйти</button>
+                        <button id="logoutBtn" class="text-gray-600 hover:text-red-600 transition-colors" data-translate="nav.logout">Выйти</button>
                     </div>
                 </div>
             </div>
@@ -40,15 +42,15 @@
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-6xl mx-auto">
             <div class="flex items-center justify-between mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">Мои комнаты</h1>
-                <a href="/" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                <h1 class="text-3xl font-bold text-gray-900" data-translate="dashboard.heading">Мои комнаты</h1>
+                <a href="/" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-translate="dashboard.create_new_room">
                     Создать новую комнату
                 </a>
             </div>
 
             <div id="loading" class="text-center py-8">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <p class="mt-2 text-gray-600">Загрузка комнат...</p>
+                <p class="mt-2 text-gray-600" data-translate="dashboard.loading_rooms">Загрузка комнат...</p>
             </div>
 
             <div id="roomsContainer" class="hidden">
@@ -61,9 +63,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-2 0h-4m-2 0h-4m-2 0H3" />
                         </svg>
                     </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">Пока нет комнат</h3>
-                    <p class="text-gray-600 mb-4">Создайте свою первую комнату для планирования</p>
-                    <a href="/" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2" data-translate="dashboard.no_rooms_heading">Пока нет комнат</h3>
+                    <p class="text-gray-600 mb-4" data-translate="dashboard.no_rooms_subtitle">Создайте свою первую комнату для планирования</p>
+                    <a href="/" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-translate="dashboard.create_room">
                         Создать комнату
                     </a>
                 </div>
@@ -194,5 +196,6 @@
 
         loadRooms();
     </script>
+    <script src="/js/translations.js"></script>
 </body>
 </html>

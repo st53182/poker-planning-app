@@ -593,10 +593,10 @@ class PlanningPokerRoom {
         const finalizeControls = document.getElementById('finalizeControls');
         
         const stateLabels = {
-            'not_started': 'Не начато',
-            'voting': 'Голосование',
-            'revealed': 'Показано',
-            'completed': 'Завершено'
+            'not_started': window.translationManager ? window.translationManager.t('room.voting_states.not_started') : 'Не начато',
+            'voting': window.translationManager ? window.translationManager.t('room.voting_states.voting') : 'Голосование',
+            'revealed': window.translationManager ? window.translationManager.t('room.voting_states.revealed') : 'Показано',
+            'completed': window.translationManager ? window.translationManager.t('room.voting_states.completed') : 'Завершено'
         };
         
         const stateClasses = {
