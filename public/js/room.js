@@ -249,21 +249,15 @@ class PlanningPokerRoom {
             return;
         }
         
-        const storedName = localStorage.getItem('participant_name');
-        const storedCompetence = localStorage.getItem('participant_competence');
-        const sessionId = localStorage.getItem('session_id');
+        localStorage.removeItem('participant_name');
+        localStorage.removeItem('participant_competence');
+        localStorage.removeItem('session_id');
         
-        const isCreator = sessionId && urlParams.has('name') && urlParams.has('competence');
-        const hasStoredSession = storedName && storedCompetence && sessionId;
+        const isCreator = urlParams.has('name') && urlParams.has('competence');
         
-        if (!isCreator && !name && !competence && hasStoredSession) {
-            name = storedName;
-            competence = storedCompetence;
-            document.getElementById('joinModal').classList.add('hidden');
-            this.performJoin(encryptedLink, name, competence);
-        } else if (!isCreator || !name || !competence) {
-            document.getElementById('joinName').value = storedName || '';
-            document.getElementById('joinCompetence').value = storedCompetence || 'Frontend';
+        if (!isCreator && !name && !competence) {
+            document.getElementById('joinName').value = '';
+            document.getElementById('joinCompetence').value = 'Frontend';
             document.getElementById('joinModal').classList.remove('hidden');
             
             document.getElementById('joinRoomBtn').onclick = () => {
@@ -274,9 +268,6 @@ class PlanningPokerRoom {
                     this.showError('Пожалуйста, введите ваше имя');
                     return;
                 }
-                
-                localStorage.setItem('participant_name', name);
-                localStorage.setItem('participant_competence', competence);
                 
                 document.getElementById('joinModal').classList.add('hidden');
                 this.performJoin(encryptedLink, name, competence);
