@@ -470,15 +470,6 @@ io.on('connection', (socket) => {
       
       connectedUsers.set(participant.id, socket.id);
       
-      if (from_dashboard && userId) {
-        const userRooms = await getUserRooms(userId);
-        const ownsRoom = userRooms.some(r => r.encrypted_link === encrypted_link);
-        
-        if (ownsRoom) {
-          await updateParticipantAdminStatus(participant.id, true);
-          participant.is_admin = true;
-        }
-      }
       
       const currentStory = room.current_story_id ? room.stories.find(s => s.id === room.current_story_id) : null;
       
