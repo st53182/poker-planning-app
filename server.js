@@ -461,8 +461,6 @@ io.on('connection', (socket) => {
       
       const { room, participant } = await joinRoom(encrypted_link, name, competence, session_id, userId);
       
-      await cleanupDuplicateParticipants(room.id, participant.id);
-      
       socket.join(room.id);
       socket.participant_id = participant.id;
       socket.room_id = room.id;
