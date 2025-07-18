@@ -479,6 +479,14 @@ io.on('connection', (socket) => {
       
       const currentStory = room.current_story_id ? room.stories.find(s => s.id === room.current_story_id) : null;
       
+      const connectedParticipants = [];
+      for (const [participantId, socketId] of connectedUsers.entries()) {
+        const participantSocket = io.sockets.sockets.get(socketId);
+        if (participantSocket && participantSocket.room_id === room.id) {
+          connectedParticipants.push(participantId);
+        }
+      }
+
       socket.emit('room_joined', {
         room_id: room.id,
         room_name: room.name,
@@ -487,20 +495,13 @@ io.on('connection', (socket) => {
         participant: participant,
         participants: room.participants,
         stories: room.stories,
-        current_story: currentStory
+        current_story: currentStory,
+        connected_participant_ids: connectedParticipants
       });
       
       socket.to(room.id).emit('participant_joined', {
         participant: participant
       });
-      
-      const connectedParticipants = [];
-      for (const [participantId, socketId] of connectedUsers.entries()) {
-        const participantSocket = io.sockets.sockets.get(socketId);
-        if (participantSocket && participantSocket.room_id === room.id) {
-          connectedParticipants.push(participantId);
-        }
-      }
       
       io.to(room.id).emit('participants_updated', { 
         connected_participant_ids: connectedParticipants 
