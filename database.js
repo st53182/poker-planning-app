@@ -272,16 +272,23 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     
     const room = roomResult.rows[0];
     
-    await client.query(`
-      DELETE FROM participants 
-      WHERE room_id = $1 AND name = $2 AND competence = $3 
-      AND id NOT IN (
-        SELECT id FROM participants 
+    if (userId) {
+      await client.query(`
+        DELETE FROM participants 
+        WHERE room_id = $1 AND user_id = $2
+      `, [room.id, userId]);
+    } else {
+      await client.query(`
+        DELETE FROM participants 
         WHERE room_id = $1 AND name = $2 AND competence = $3 
-        ORDER BY is_admin DESC, joined_at ASC 
-        LIMIT 1
-      )
-    `, [room.id, name, competence]);
+        AND id NOT IN (
+          SELECT id FROM participants 
+          WHERE room_id = $1 AND name = $2 AND competence = $3 
+          ORDER BY is_admin DESC, joined_at ASC 
+          LIMIT 1
+        )
+      `, [room.id, name, competence]);
+    }
     
     let participantResult = await client.query(
       'SELECT * FROM participants WHERE room_id = $1 AND session_id = $2',
@@ -291,10 +298,20 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     let participant;
     
     if (participantResult.rows.length === 0) {
-      const existingParticipantResult = await client.query(
-        'SELECT * FROM participants WHERE room_id = $1 AND name = $2 AND competence = $3 ORDER BY is_admin DESC, joined_at ASC LIMIT 1',
-        [room.id, name, competence]
-      );
+      let existingParticipantResult;
+      if (userId) {
+        existingParticipantResult = await client.query(
+          'SELECT * FROM participants WHERE room_id = $1 AND user_id = $2 ORDER BY is_admin DESC, joined_at ASC LIMIT 1',
+          [room.id, userId]
+        );
+      }
+      
+      if (!existingParticipantResult || existingParticipantResult.rows.length === 0) {
+        existingParticipantResult = await client.query(
+          'SELECT * FROM participants WHERE room_id = $1 AND name = $2 AND competence = $3 ORDER BY is_admin DESC, joined_at ASC LIMIT 1',
+          [room.id, name, competence]
+        );
+      }
       
       if (existingParticipantResult.rows.length > 0) {
         await client.query(
