@@ -330,6 +330,7 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       }
     } else {
       participant = participantResult.rows[0];
+      const originalIsAdmin = participant.is_admin;
       await client.query(
         'UPDATE participants SET name = $1, competence = $2, user_id = $3 WHERE id = $4',
         [name, competence, userId, participant.id]
@@ -337,6 +338,7 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       participant.name = name;
       participant.competence = competence;
       participant.user_id = userId;
+      participant.is_admin = originalIsAdmin;
     }
     
     await client.query('COMMIT');
