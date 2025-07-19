@@ -84,6 +84,9 @@
     "delete_room": "Delete Room",
     "copy_link": "Copy Link",
     "admin": "Admin",
+    "moderator": "Moderator", 
+    "make_moderator": "Make Moderator",
+    "remove_moderator": "Remove Moderator",
     "voting_states": {
       "not_started": "Not Started",
       "voting": "Voting",

@@ -188,10 +188,20 @@ class PlanningPokerRoom {
             this.displaySimilarStories(data.stories);
         });
 
-        this.socket.on('admin_promoted', (data) => {
-            const participantIndex = this.participants.findIndex(p => p.id === data.participant.id);
+        this.socket.on('moderator_promoted', (data) => {
+            const { participant } = data;
+            const participantIndex = this.participants.findIndex(p => p.id === participant.id);
             if (participantIndex !== -1) {
-                this.participants[participantIndex] = data.participant;
+                this.participants[participantIndex] = participant;
+                this.updateParticipantsList();
+            }
+        });
+
+        this.socket.on('moderator_removed', (data) => {
+            const { participant } = data;
+            const participantIndex = this.participants.findIndex(p => p.id === participant.id);
+            if (participantIndex !== -1) {
+                this.participants[participantIndex] = participant;
                 this.updateParticipantsList();
             }
         });
@@ -321,6 +331,7 @@ class PlanningPokerRoom {
         this.stories = data.stories;
         this.currentStory = data.current_story;
         this.isAdmin = data.participant.is_admin;
+        this.isModerator = data.participant.is_moderator;
         this.connectedParticipantIds = data.connected_participant_ids || data.participants.map(p => p.id);
 
         document.getElementById('roomName').textContent = data.room_name || 'Комната Планирования';
@@ -387,6 +398,11 @@ class PlanningPokerRoom {
     }
 
     createStory() {
+        if (!this.isAdmin && !this.isModerator) {
+            this.showError('Только администраторы и модераторы могут создавать истории');
+            return;
+        }
+        
         const title = document.getElementById('newStoryTitle').value.trim();
         const description = document.getElementById('newStoryDescription').value.trim();
         
@@ -417,6 +433,11 @@ class PlanningPokerRoom {
     }
 
     startVoting() {
+        if (!this.isAdmin && !this.isModerator) {
+            this.showError('Только администраторы и модераторы могут запускать голосование');
+            return;
+        }
+        
         this.socket.emit('start_voting', {
             room_id: this.roomData.room_id,
             story_id: this.currentStory.id,
@@ -464,8 +485,16 @@ class PlanningPokerRoom {
         document.getElementById('finalEstimateInput').value = '';
     }
 
-    makeAdmin(participantId) {
-        this.socket.emit('make_admin', {
+    makeModerator(participantId) {
+        this.socket.emit('make_moderator', {
+            room_id: this.roomData.room_id,
+            target_participant_id: participantId,
+            participant_id: this.participant.id
+        });
+    }
+
+    removeModerator(participantId) {
+        this.socket.emit('remove_moderator', {
             room_id: this.roomData.room_id,
             target_participant_id: participantId,
             participant_id: this.participant.id
@@ -473,8 +502,8 @@ class PlanningPokerRoom {
     }
 
     removeParticipant(participantId) {
-        if (!this.isAdmin) {
-            this.showError('Только администраторы могут удалять участников');
+        if (!this.isAdmin && !this.isModerator) {
+            this.showError('Только администраторы и модераторы могут удалять участников');
             return;
         }
         
@@ -709,11 +738,19 @@ class PlanningPokerRoom {
                 ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Админ</span>'
                 : '';
             
-            const makeAdminBtn = this.isAdmin && !participant.is_admin && participant.id !== this.participant.id
-                ? `<button onclick="room.makeAdmin('${participant.id}')" class="text-xs text-blue-600 hover:text-blue-800">Сделать админом</button>`
+            const moderatorBadge = participant.is_moderator 
+                ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Модератор</span>'
                 : '';
             
-            const removeBtn = this.isAdmin && participant.id !== this.participant.id
+            const makeModeratorBtn = this.isAdmin && !participant.is_admin && !participant.is_moderator && participant.id !== this.participant.id
+                ? `<button onclick="room.makeModerator('${participant.id}')" class="text-xs text-green-600 hover:text-green-800">Сделать модератором</button>`
+                : '';
+            
+            const removeModeratorBtn = this.isAdmin && participant.is_moderator && participant.id !== this.participant.id
+                ? `<button onclick="room.removeModerator('${participant.id}')" class="text-xs text-orange-600 hover:text-orange-800">Убрать модератора</button>`
+                : '';
+            
+            const removeBtn = (this.isAdmin || this.isModerator) && participant.id !== this.participant.id
                 ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">Удалить</button>`
                 : '';
             
@@ -724,7 +761,9 @@ class PlanningPokerRoom {
                 </div>
                 <div class="flex items-center space-x-2">
                     ${adminBadge}
-                    ${makeAdminBtn}
+                    ${moderatorBadge}
+                    ${makeModeratorBtn}
+                    ${removeModeratorBtn}
                     ${removeBtn}
                 </div>
             `;

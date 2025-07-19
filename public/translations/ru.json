@@ -84,6 +84,9 @@
     "delete_room": "Удалить комнату",
     "copy_link": "Скопировать ссылку",
     "admin": "Админ",
+    "moderator": "Модератор",
+    "make_moderator": "Сделать модератором",
+    "remove_moderator": "Убрать модератора",
     "voting_states": {
       "not_started": "Не начато",
       "voting": "Голосование",

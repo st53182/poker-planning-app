@@ -66,6 +66,7 @@ async function initializeDatabase() {
         name VARCHAR(255) NOT NULL,
         competence VARCHAR(50) NOT NULL,
         is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+        is_moderator BOOLEAN NOT NULL DEFAULT FALSE,
         session_id VARCHAR(255),
         user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -114,6 +115,23 @@ async function initializeDatabase() {
       console.log('Fixed is_admin column to be NOT NULL with proper default');
     } else {
       console.log('is_admin column is already properly configured');
+    }
+    
+    console.log('Adding is_moderator column if it does not exist...');
+    const moderatorColumnResult = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'participants' AND column_name = 'is_moderator';
+    `);
+    
+    if (moderatorColumnResult.rows.length === 0) {
+      console.log('Adding missing is_moderator column to participants table...');
+      await client.query(`
+        ALTER TABLE participants ADD COLUMN is_moderator BOOLEAN NOT NULL DEFAULT FALSE;
+      `);
+      console.log('Added is_moderator column to participants table successfully');
+    } else {
+      console.log('is_moderator column already exists in participants table');
     }
     
     console.log('Creating stories table...');
@@ -564,6 +582,30 @@ async function makeParticipantAdmin(participantId) {
   }
 }
 
+async function makeParticipantModerator(participantId) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE participants SET is_moderator = true WHERE id = $1',
+      [participantId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function removeParticipantModerator(participantId) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE participants SET is_moderator = false WHERE id = $1',
+      [participantId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
 async function claimRoom(encryptedLink, userId) {
   const client = await pool.connect();
   try {
@@ -838,12 +880,12 @@ async function removeParticipant(participantId, adminParticipantId) {
   const client = await pool.connect();
   try {
     const adminResult = await client.query(
-      'SELECT p1.room_id, p1.is_admin FROM participants p1 WHERE p1.id = $1',
+      'SELECT p1.room_id, p1.is_admin, p1.is_moderator FROM participants p1 WHERE p1.id = $1',
       [adminParticipantId]
     );
     
-    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
-      throw new Error('Только администраторы могут удалять участников');
+    if (adminResult.rows.length === 0 || (!adminResult.rows[0].is_admin && !adminResult.rows[0].is_moderator)) {
+      throw new Error('Только администраторы и модераторы могут удалять участников');
     }
     
     const participantResult = await client.query(
@@ -955,6 +997,8 @@ module.exports = {
   claimRoom,
   deleteRoom,
   updateParticipantAdminStatus,
+  makeParticipantModerator,
+  removeParticipantModerator,
   removeParticipant,
   cleanupDuplicateParticipants
 };

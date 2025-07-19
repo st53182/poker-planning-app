@@ -31,6 +31,8 @@ const {
   updateStoryFinalEstimate,
   updateRoomCurrentStory,
   makeParticipantAdmin,
+  makeParticipantModerator,
+  removeParticipantModerator,
   clearStoryVotes,
   getRoomById,
   createUser,
@@ -610,11 +612,11 @@ io.on('connection', (socket) => {
     }
   });
   
-  socket.on('make_admin', async (data) => {
+  socket.on('make_moderator', async (data) => {
     try {
       const { room_id, target_participant_id, participant_id } = data;
       
-      await makeParticipantAdmin(target_participant_id);
+      await makeParticipantModerator(target_participant_id);
       
       const { pool } = require('./database');
       const client = await pool.connect();
@@ -626,7 +628,33 @@ io.on('connection', (socket) => {
         
         if (result.rows.length > 0) {
           const updatedParticipant = result.rows[0];
-          io.to(room_id).emit('admin_promoted', { participant: updatedParticipant });
+          io.to(room_id).emit('moderator_promoted', { participant: updatedParticipant });
+        }
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+    }
+  });
+
+  socket.on('remove_moderator', async (data) => {
+    try {
+      const { room_id, target_participant_id, participant_id } = data;
+      
+      await removeParticipantModerator(target_participant_id);
+      
+      const { pool } = require('./database');
+      const client = await pool.connect();
+      try {
+        const result = await client.query(
+          'SELECT * FROM participants WHERE id = $1',
+          [target_participant_id]
+        );
+        
+        if (result.rows.length > 0) {
+          const updatedParticipant = result.rows[0];
+          io.to(room_id).emit('moderator_removed', { participant: updatedParticipant });
         }
       } finally {
         client.release();
