@@ -361,6 +361,14 @@ class PlanningPokerRoom {
     selectVote(value) {
         this.selectedVote = value;
         
+        const selectedVoteElement = document.getElementById('selectedVoteValue');
+        const submitVoteBtn = document.getElementById('submitVoteBtn');
+        
+        if (!selectedVoteElement || !submitVoteBtn) {
+            console.warn('Voting elements not available - voting section may be hidden');
+            return;
+        }
+        
         document.querySelectorAll('.voting-card').forEach(card => {
             card.classList.remove('selected', 'border-blue-500', 'bg-blue-50');
             card.classList.add('border-gray-200');
@@ -369,8 +377,8 @@ class PlanningPokerRoom {
         event.target.closest('.voting-card').classList.add('selected', 'border-blue-500', 'bg-blue-50');
         event.target.closest('.voting-card').classList.remove('border-gray-200');
         
-        document.getElementById('selectedVoteValue').textContent = value;
-        document.getElementById('submitVoteBtn').classList.remove('hidden');
+        selectedVoteElement.textContent = value;
+        submitVoteBtn.classList.remove('hidden');
         
         this.socket.emit('get_similar_stories', {
             room_id: this.roomData.room_id,
