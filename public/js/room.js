@@ -691,7 +691,6 @@ class PlanningPokerRoom {
                 ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Админ</span>'
                 : '';
             
-            
             const removeBtn = this.isAdmin && participant.id !== this.participant.id
                 ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">Удалить</button>`
                 : '';
