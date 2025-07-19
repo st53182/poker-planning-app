@@ -739,15 +739,15 @@ class PlanningPokerRoom {
                 : '';
             
             const moderatorBadge = participant.is_moderator 
-                ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Модератор</span>'
+                ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs" data-translate="room.moderator">${window.translationManager ? window.translationManager.t('room.moderator') : 'Модератор'}</span>`
                 : '';
             
             const makeModeratorBtn = this.isAdmin && !participant.is_admin && !participant.is_moderator && participant.id !== this.participant.id
-                ? `<button onclick="room.makeModerator('${participant.id}')" class="text-xs text-green-600 hover:text-green-800">Сделать модератором</button>`
+                ? `<button onclick="room.makeModerator('${participant.id}')" class="text-xs text-green-600 hover:text-green-800" data-translate="room.make_moderator">${window.translationManager ? window.translationManager.t('room.make_moderator') : 'Сделать модератором'}</button>`
                 : '';
             
             const removeModeratorBtn = this.isAdmin && participant.is_moderator && participant.id !== this.participant.id
-                ? `<button onclick="room.removeModerator('${participant.id}')" class="text-xs text-orange-600 hover:text-orange-800">Убрать модератора</button>`
+                ? `<button onclick="room.removeModerator('${participant.id}')" class="text-xs text-orange-600 hover:text-orange-800" data-translate="room.remove_moderator">${window.translationManager ? window.translationManager.t('room.remove_moderator') : 'Убрать модератора'}</button>`
                 : '';
             
             const removeBtn = (this.isAdmin || this.isModerator) && participant.id !== this.participant.id

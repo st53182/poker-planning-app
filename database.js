@@ -320,16 +320,24 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     let existingUserParticipant = null;
     if (userId) {
       const existingResult = await client.query(
-        'SELECT * FROM participants WHERE room_id = $1 AND user_id = $2',
+        'SELECT *, is_moderator FROM participants WHERE room_id = $1 AND user_id = $2',
         [room.id, userId]
       );
       if (existingResult.rows.length > 0) {
         existingUserParticipant = existingResult.rows[0];
       }
+    } else {
+      const existingAdminResult = await client.query(
+        'SELECT *, is_moderator FROM participants WHERE room_id = $1 AND name = $2 AND is_admin = true',
+        [room.id, name]
+      );
+      if (existingAdminResult.rows.length > 0) {
+        existingUserParticipant = existingAdminResult.rows[0];
+      }
     }
 
     let participantResult = await client.query(
-      'SELECT * FROM participants WHERE room_id = $1 AND session_id = $2',
+      'SELECT *, is_moderator FROM participants WHERE room_id = $1 AND session_id = $2',
       [room.id, sessionId]
     );
 
@@ -357,8 +365,8 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       const isAdmin = !!(userId && room.owner_id === userId);
       
       await client.query(
-        'INSERT INTO participants (id, room_id, name, competence, is_admin, session_id, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [participantId, room.id, name, competence, isAdmin, sessionId, userId]
+        'INSERT INTO participants (id, room_id, name, competence, is_admin, is_moderator, session_id, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [participantId, room.id, name, competence, isAdmin, false, sessionId, userId]
       );
       
       participant = {
@@ -367,6 +375,7 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
         name: name,
         competence: competence,
         is_admin: isAdmin,
+        is_moderator: false,
         session_id: sessionId,
         user_id: userId,
         joined_at: new Date()
