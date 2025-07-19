@@ -193,6 +193,12 @@ class PlanningPokerRoom {
             const participantIndex = this.participants.findIndex(p => p.id === participant.id);
             if (participantIndex !== -1) {
                 this.participants[participantIndex] = participant;
+                
+                if (this.participant && this.participant.id === participant.id) {
+                    this.participant.is_moderator = true;
+                    this.isModerator = true;
+                }
+                
                 this.updateParticipantsList();
             }
         });
@@ -202,6 +208,12 @@ class PlanningPokerRoom {
             const participantIndex = this.participants.findIndex(p => p.id === participant.id);
             if (participantIndex !== -1) {
                 this.participants[participantIndex] = participant;
+                
+                if (this.participant && this.participant.id === participant.id) {
+                    this.participant.is_moderator = false;
+                    this.isModerator = false;
+                }
+                
                 this.updateParticipantsList();
             }
         });
@@ -331,7 +343,7 @@ class PlanningPokerRoom {
         this.stories = data.stories;
         this.currentStory = data.current_story;
         this.isAdmin = data.participant.is_admin;
-        this.isModerator = data.participant.is_moderator;
+        this.isModerator = data.participant.is_moderator || false;
         this.connectedParticipantIds = data.connected_participant_ids || data.participants.map(p => p.id);
 
         document.getElementById('roomName').textContent = data.room_name || 'Комната Планирования';
