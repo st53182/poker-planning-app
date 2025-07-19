@@ -151,6 +151,7 @@ class PlanningPokerRoom {
         this.socket.on('current_story_set', (data) => {
             this.currentStory = this.stories.find(story => story.id === data.story_id);
             this.updateCurrentStory();
+            this.updateVotingState();
             this.resetVotingState();
         });
 
@@ -330,10 +331,12 @@ class PlanningPokerRoom {
         this.updateStoriesList();
         this.updateCurrentStory();
         this.generateVotingCards();
+        this.updateVotingState();
         this.checkAuthenticationStatus();
         
         setTimeout(() => {
             this.updateStoriesList();
+            this.updateVotingState();
         }, 100);
     }
 
@@ -584,15 +587,32 @@ class PlanningPokerRoom {
     }
 
     updateVotingState() {
-        if (!this.currentStory) return;
-        
-        const state = this.currentStory.voting_state;
         const badge = document.getElementById('votingStateBadge');
         const votingSection = document.getElementById('votingSection');
+        const votingCards = document.getElementById('votingCards');
         const revealedSection = document.getElementById('revealedVotesSection');
         const startBtn = document.getElementById('startVotingBtn');
         const revealBtn = document.getElementById('revealVotesBtn');
         const finalizeControls = document.getElementById('finalizeControls');
+        
+        if (!badge || !votingSection || !votingCards || !revealedSection || !startBtn || !revealBtn || !finalizeControls) {
+            console.warn('Some voting UI elements not found, skipping state update');
+            return;
+        }
+        
+        if (!this.currentStory) {
+            votingSection.classList.add('hidden');
+            votingCards.classList.add('hidden');
+            revealedSection.classList.add('hidden');
+            startBtn.classList.add('hidden');
+            revealBtn.classList.add('hidden');
+            finalizeControls.classList.add('hidden');
+            badge.textContent = window.translationManager ? window.translationManager.t('room.voting_states.not_started') : 'Не начато';
+            badge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800';
+            return;
+        }
+        
+        const state = this.currentStory.voting_state;
         
         const stateLabels = {
             'not_started': window.translationManager ? window.translationManager.t('room.voting_states.not_started') : 'Не начато',
@@ -616,6 +636,7 @@ class PlanningPokerRoom {
         finalizeControls.classList.toggle('hidden', state !== 'revealed');
         
         votingSection.classList.toggle('hidden', state !== 'voting');
+        votingCards.classList.toggle('hidden', state !== 'voting');
         revealedSection.classList.toggle('hidden', state !== 'revealed');
     }
 
