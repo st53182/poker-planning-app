@@ -616,7 +616,21 @@ io.on('connection', (socket) => {
       
       await makeParticipantAdmin(target_participant_id);
       
-      io.to(room_id).emit('admin_promoted', { participant_id: target_participant_id });
+      const { pool } = require('./database');
+      const client = await pool.connect();
+      try {
+        const result = await client.query(
+          'SELECT * FROM participants WHERE id = $1',
+          [target_participant_id]
+        );
+        
+        if (result.rows.length > 0) {
+          const updatedParticipant = result.rows[0];
+          io.to(room_id).emit('admin_promoted', { participant: updatedParticipant });
+        }
+      } finally {
+        client.release();
+      }
     } catch (error) {
       socket.emit('error', { message: error.message });
     }
