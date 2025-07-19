@@ -156,6 +156,8 @@ class PlanningPokerRoom {
         });
 
         this.socket.on('voting_started', (data) => {
+            console.log('📢 [voting_started] Событие получено:', data);
+            console.log('📢 currentStory:', this.currentStory);
             if (this.currentStory && this.currentStory.id === data.story_id) {
                 this.currentStory.voting_state = 'voting';
                 this.updateVotingState();
