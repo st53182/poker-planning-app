@@ -273,6 +273,8 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
     const room = roomResult.rows[0];
     
     if (userId) {
+      await client.query('UPDATE stories SET created_by = NULL WHERE created_by IN (SELECT id FROM participants WHERE room_id = $1 AND user_id = $2)', [room.id, userId]);
+      
       await client.query(`
         DELETE FROM participants 
         WHERE room_id = $1 AND user_id = $2
