@@ -65,7 +65,7 @@ async function initializeDatabase() {
         room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         competence VARCHAR(50) NOT NULL,
-        is_admin BOOLEAN DEFAULT FALSE,
+        is_admin BOOLEAN NOT NULL DEFAULT FALSE,
         session_id VARCHAR(255),
         user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -87,6 +87,33 @@ async function initializeDatabase() {
       console.log('Added user_id column to participants table successfully');
     } else {
       console.log('user_id column already exists in participants table');
+    }
+    
+    console.log('Ensuring is_admin column is properly configured...');
+    
+    const columnInfoResult = await client.query(`
+      SELECT is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'participants' AND column_name = 'is_admin';
+    `);
+    
+    if (columnInfoResult.rows.length > 0 && columnInfoResult.rows[0].is_nullable === 'YES') {
+      console.log('Updating existing NULL values in is_admin column...');
+      await client.query(`
+        UPDATE participants SET is_admin = FALSE WHERE is_admin IS NULL;
+      `);
+      
+      console.log('Setting is_admin column to NOT NULL...');
+      await client.query(`
+        ALTER TABLE participants ALTER COLUMN is_admin SET NOT NULL;
+      `);
+      
+      await client.query(`
+        ALTER TABLE participants ALTER COLUMN is_admin SET DEFAULT FALSE;
+      `);
+      console.log('Fixed is_admin column to be NOT NULL with proper default');
+    } else {
+      console.log('is_admin column is already properly configured');
     }
     
     console.log('Creating stories table...');
@@ -309,7 +336,7 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
       }
     } else if (participantResult.rows.length === 0) {
       const participantId = require('uuid').v4();
-      const isAdmin = userId && room.owner_id === userId;
+      const isAdmin = !!(userId && room.owner_id === userId);
       
       await client.query(
         'INSERT INTO participants (id, room_id, name, competence, is_admin, session_id, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
