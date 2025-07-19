@@ -545,18 +545,22 @@ io.on('connection', (socket) => {
     }
   });
   
-  socket.on('start_voting', async (data) => {
+socket.on('start_voting', async (data) => {
     try {
-      const { room_id, story_id, participant_id } = data;
-      
-      await updateStoryVotingState(story_id, 'voting');
-      await clearStoryVotes(story_id);
-      
-      io.to(room_id).emit('voting_started', { story_id });
+        const { room_id, story_id, participant_id } = data;
+
+        console.log(`[SERVER] start_voting от ${socket.id} в room ${room_id} для story ${story_id}`);
+
+        await updateStoryVotingState(story_id, 'voting');
+        await clearStoryVotes(story_id);
+
+        console.log(`[SERVER] Отправляем voting_started в room ${room_id}`);
+        io.to(room_id).emit('voting_started', { story_id });
     } catch (error) {
-      socket.emit('error', { message: error.message });
+        console.error(`[SERVER] Ошибка в start_voting:`, error);
+        socket.emit('error', { message: error.message });
     }
-  });
+});
   
   socket.on('submit_vote', async (data) => {
     try {
