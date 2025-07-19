@@ -188,13 +188,6 @@ class PlanningPokerRoom {
             this.displaySimilarStories(data.stories);
         });
 
-        this.socket.on('admin_promoted', (data) => {
-            const participantIndex = this.participants.findIndex(p => p.id === data.participant.id);
-            if (participantIndex !== -1) {
-                this.participants[participantIndex] = data.participant;
-                this.updateParticipantsList();
-            }
-        });
 
         this.socket.on('error', (data) => {
             this.showError(data.message);
@@ -407,8 +400,6 @@ class PlanningPokerRoom {
     }
 
     setCurrentStory(storyId) {
-        if (!this.isAdmin) return;
-        
         this.socket.emit('set_current_story', {
             room_id: this.roomData.room_id,
             story_id: storyId,
@@ -464,13 +455,6 @@ class PlanningPokerRoom {
         document.getElementById('finalEstimateInput').value = '';
     }
 
-    makeAdmin(participantId) {
-        this.socket.emit('make_admin', {
-            room_id: this.roomData.room_id,
-            target_participant_id: participantId,
-            participant_id: this.participant.id
-        });
-    }
 
     removeParticipant(participantId) {
         if (!this.isAdmin) {
@@ -619,11 +603,9 @@ class PlanningPokerRoom {
         badge.textContent = stateLabels[state] || state;
         badge.className = `px-3 py-1 rounded-full text-sm font-medium ${stateClasses[state]}`;
         
-        if (this.isAdmin) {
-            startBtn.classList.toggle('hidden', state !== 'not_started');
-            revealBtn.classList.toggle('hidden', state !== 'voting');
-            finalizeControls.classList.toggle('hidden', state !== 'revealed');
-        }
+        startBtn.classList.toggle('hidden', state !== 'not_started');
+        revealBtn.classList.toggle('hidden', state !== 'voting');
+        finalizeControls.classList.toggle('hidden', state !== 'revealed');
         
         votingSection.classList.toggle('hidden', state !== 'voting');
         revealedSection.classList.toggle('hidden', state !== 'revealed');
@@ -709,9 +691,6 @@ class PlanningPokerRoom {
                 ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Админ</span>'
                 : '';
             
-            const makeAdminBtn = this.isAdmin && !participant.is_admin && participant.id !== this.participant.id
-                ? `<button onclick="room.makeAdmin('${participant.id}')" class="text-xs text-blue-600 hover:text-blue-800">Сделать админом</button>`
-                : '';
             
             const removeBtn = this.isAdmin && participant.id !== this.participant.id
                 ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">Удалить</button>`
@@ -724,7 +703,6 @@ class PlanningPokerRoom {
                 </div>
                 <div class="flex items-center space-x-2">
                     ${adminBadge}
-                    ${makeAdminBtn}
                     ${removeBtn}
                 </div>
             `;
@@ -761,8 +739,8 @@ class PlanningPokerRoom {
             storyElement.dataset.storyId = story.id;
             storyElement.dataset.orderPosition = story.order_position || index;
             
-            const clickableClass = this.isAdmin ? 'cursor-pointer hover:bg-gray-50 hover:border-blue-300' : '';
-            const clickHint = this.isAdmin && !isCurrentStory ? 'border-l-4 border-l-blue-400' : '';
+            const clickableClass = 'cursor-pointer hover:bg-gray-50 hover:border-blue-300';
+            const clickHint = !isCurrentStory ? 'border-l-4 border-l-blue-400' : '';
             
             storyElement.className = `p-4 border rounded-lg transition-colors ${clickableClass} ${clickHint} ${
                 isCurrentStory ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
@@ -772,13 +750,13 @@ class PlanningPokerRoom {
                 storyElement.addEventListener('dragstart', this.handleDragStart.bind(this));
                 storyElement.addEventListener('dragover', this.handleDragOver.bind(this));
                 storyElement.addEventListener('drop', this.handleDrop.bind(this));
-                storyElement.addEventListener('click', (e) => {
-                    if (!e.target.closest('button')) {
-                        this.setCurrentStory(story.id);
-                    }
-                });
-                storyElement.title = 'Нажмите, чтобы начать оценку этой истории';
             }
+            storyElement.addEventListener('click', (e) => {
+                if (!e.target.closest('button')) {
+                    this.setCurrentStory(story.id);
+                }
+            });
+            storyElement.title = 'Нажмите, чтобы начать оценку этой истории';
             
             const finalEstimateBadge = story.final_estimate 
                 ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">${story.final_estimate} ${this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов'}</span>`
@@ -798,7 +776,7 @@ class PlanningPokerRoom {
                 'completed': 'Завершено'
             };
             
-            const clickHintText = this.isAdmin && !isCurrentStory ? 
+            const clickHintText = !isCurrentStory ? 
                 '<div class="text-xs text-blue-600 mt-1">👆 Нажмите для начала оценки</div>' : '';
             
             const actionButtons = this.isAdmin ? `

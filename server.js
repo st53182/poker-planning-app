@@ -30,7 +30,6 @@ const {
   updateStoryVotingState,
   updateStoryFinalEstimate,
   updateRoomCurrentStory,
-  makeParticipantAdmin,
   clearStoryVotes,
   getRoomById,
   createUser,
@@ -619,17 +618,6 @@ io.on('connection', (socket) => {
     }
   });
   
-  socket.on('make_admin', async (data) => {
-    try {
-      const { room_id, target_participant_id, participant_id } = data;
-      
-      await makeParticipantAdmin(target_participant_id);
-      
-      io.to(room_id).emit('admin_promoted', { participant_id: target_participant_id });
-    } catch (error) {
-      socket.emit('error', { message: error.message });
-    }
-  });
 
   socket.on('update_story', async (data) => {
     try {
