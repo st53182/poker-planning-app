@@ -125,7 +125,7 @@
                         </div>
                     </div>
 
-                    <div id="adminControls" class="hidden flex space-x-3 mb-4">
+                    <div id="adminControls" class="flex space-x-3 mb-4">
                         <button 
                             id="startVotingBtn"
                             class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
@@ -173,13 +173,16 @@
                         <div id="votingCards" class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-11 gap-3 mb-4">
                         </div>
                         
-                        <button 
-                            id="submitVoteBtn"
-                            class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                            data-translate="room.submit_vote"
-                        >
-                            Отправить голос: <span id="selectedVoteValue"></span>
-                        </button>
+                        <div class="mb-4">
+                            <p class="text-sm text-gray-600 mb-2" data-translate="room.selected_vote">Выбранная оценка: <span id="selectedVoteValue" class="font-semibold text-blue-600">-</span></p>
+                            <button 
+                                id="submitVoteBtn"
+                                class="hidden px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                data-translate="room.submit_vote"
+                            >
+                                Отправить голос
+                            </button>
+                        </div>
                     </div>
 
                     <div id="revealedVotesSection" class="hidden mb-6">
