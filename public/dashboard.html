@@ -139,7 +139,9 @@
                 const roomCard = document.createElement('div');
                 roomCard.className = 'bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow';
                 
-                const estimationType = room.estimation_type === 'story_points' ? 'Стори поинты' : 'Часы';
+                const estimationType = room.estimation_type === 'story_points' ? 
+                    (window.translationManager ? window.translationManager.t('dashboard.story_points') : 'Стори поинты') : 
+                    (window.translationManager ? window.translationManager.t('dashboard.hours') : 'Часы');
                 const createdDate = new Date(room.created_at).toLocaleDateString('ru-RU');
                 
                 roomCard.innerHTML = `
@@ -147,7 +149,9 @@
                         <h3 class="text-lg font-semibold text-gray-900 truncate">${escapeHtml(room.name)}</h3>
                         <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${estimationType}</span>
                     </div>
-                    <p class="text-gray-600 text-sm mb-4">Создана: ${createdDate}</p>
+                    <p class="text-gray-600 text-sm mb-4">
+                        ${window.translationManager ? window.translationManager.t('dashboard.created_on') : 'Создана'}: ${createdDate}
+                    </p>
                     <div class="flex space-x-2">
                         <a href="/room/${room.encrypted_link}?from_dashboard=true" 
                            class="flex-1 bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm"

@@ -73,7 +73,10 @@
     "copy_link": "Copy Link",
     "link_copied": "Link copied to clipboard",
     "copy_failed": "Failed to copy link",
-    "load_rooms_error": "Error loading rooms"
+    "load_rooms_error": "Error loading rooms",
+    "story_points": "Story Points",
+    "hours": "Hours",
+    "created_on": "Created"
   },
   "room": {
     "title": "Planning Poker - Room",

@@ -323,8 +323,9 @@ class PlanningPokerRoom {
         
         if (this.isAdmin) {
             document.getElementById('adminBadge').classList.remove('hidden');
-            document.getElementById('adminControls').classList.remove('hidden');
         }
+        
+        document.getElementById('adminControls').classList.remove('hidden');
 
         this.updateParticipantsList();
         this.updateStoriesList();
@@ -369,8 +370,16 @@ class PlanningPokerRoom {
         event.target.closest('.voting-card').classList.add('selected', 'border-blue-500', 'bg-blue-50');
         event.target.closest('.voting-card').classList.remove('border-gray-200');
         
-        document.getElementById('selectedVoteValue').textContent = value;
-        document.getElementById('submitVoteBtn').classList.remove('hidden');
+        const selectedVoteElement = document.getElementById('selectedVoteValue');
+        const submitVoteBtn = document.getElementById('submitVoteBtn');
+        
+        if (selectedVoteElement) {
+            selectedVoteElement.textContent = value;
+        }
+        
+        if (submitVoteBtn) {
+            submitVoteBtn.classList.remove('hidden');
+        }
         
         this.socket.emit('get_similar_stories', {
             room_id: this.roomData.room_id,
@@ -425,7 +434,10 @@ class PlanningPokerRoom {
             participant_id: this.participant.id
         });
         
-        document.getElementById('submitVoteBtn').classList.add('hidden');
+        const submitVoteBtn = document.getElementById('submitVoteBtn');
+        if (submitVoteBtn) {
+            submitVoteBtn.classList.add('hidden');
+        }
         this.showToast('Голос отправлен!', 'success');
     }
 
@@ -507,7 +519,6 @@ class PlanningPokerRoom {
                 this.isAdmin = true;
                 this.participant.is_admin = true;
                 document.getElementById('adminBadge').classList.remove('hidden');
-                document.getElementById('adminControls').classList.remove('hidden');
                 this.updateParticipantsList();
             } else {
                 this.showError(result.error);
@@ -613,8 +624,17 @@ class PlanningPokerRoom {
 
     resetVotingState() {
         this.selectedVote = null;
-        document.getElementById('submitVoteBtn').classList.add('hidden');
-        document.getElementById('similarStoriesSection').classList.add('hidden');
+        
+        const submitVoteBtn = document.getElementById('submitVoteBtn');
+        const similarStoriesSection = document.getElementById('similarStoriesSection');
+        
+        if (submitVoteBtn) {
+            submitVoteBtn.classList.add('hidden');
+        }
+        
+        if (similarStoriesSection) {
+            similarStoriesSection.classList.add('hidden');
+        }
         
         document.querySelectorAll('.voting-card').forEach(card => {
             card.classList.remove('selected', 'border-blue-500', 'bg-blue-50');
@@ -873,7 +893,7 @@ class PlanningPokerRoom {
             }
         }
         
-        if (this.isAdmin && this.stories && this.stories.length > 0) {
+        if (this.stories && this.stories.length > 0) {
             const adminHint = document.getElementById('adminHint');
             if (adminHint) {
                 adminHint.classList.remove('hidden');
