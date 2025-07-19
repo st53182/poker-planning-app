@@ -464,13 +464,6 @@ class PlanningPokerRoom {
         document.getElementById('finalEstimateInput').value = '';
     }
 
-    makeAdmin(participantId) {
-        this.socket.emit('make_admin', {
-            room_id: this.roomData.room_id,
-            target_participant_id: participantId,
-            participant_id: this.participant.id
-        });
-    }
 
     removeParticipant(participantId) {
         if (!this.isAdmin) {
@@ -709,9 +702,7 @@ class PlanningPokerRoom {
                 ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Админ</span>'
                 : '';
             
-            const makeAdminBtn = this.isAdmin && !participant.is_admin && participant.id !== this.participant.id
-                ? `<button onclick="room.makeAdmin('${participant.id}')" class="text-xs text-blue-600 hover:text-blue-800">Сделать админом</button>`
-                : '';
+            const makeAdminBtn = '';
             
             const removeBtn = this.isAdmin && participant.id !== this.participant.id
                 ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">Удалить</button>`

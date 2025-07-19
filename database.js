@@ -517,17 +517,6 @@ async function updateRoomCurrentStory(roomId, storyId) {
   }
 }
 
-async function makeParticipantAdmin(participantId) {
-  const client = await pool.connect();
-  try {
-    await client.query(
-      'UPDATE participants SET is_admin = true WHERE id = $1',
-      [participantId]
-    );
-  } finally {
-    client.release();
-  }
-}
 
 async function claimRoom(encryptedLink, userId) {
   const client = await pool.connect();
@@ -909,7 +898,6 @@ module.exports = {
   updateStoryVotingState,
   updateStoryFinalEstimate,
   updateRoomCurrentStory,
-  makeParticipantAdmin,
   clearStoryVotes,
   getRoomById,
   createUser,
