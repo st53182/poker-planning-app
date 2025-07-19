@@ -60,7 +60,23 @@ class TranslationManager {
                 element.textContent = translation;
                 document.title = translation;
             } else {
-                element.textContent = translation;
+                const hasChildElements = element.children.length > 0;
+                if (hasChildElements) {
+                    const childNodes = Array.from(element.childNodes);
+                    const textNodes = childNodes.filter(node => node.nodeType === Node.TEXT_NODE);
+                    
+                    if (textNodes.length > 0) {
+                        textNodes[0].textContent = translation;
+                        for (let i = 1; i < textNodes.length; i++) {
+                            textNodes[i].remove();
+                        }
+                    } else {
+                        const textNode = document.createTextNode(translation);
+                        element.insertBefore(textNode, element.firstChild);
+                    }
+                } else {
+                    element.textContent = translation;
+                }
             }
         });
     }
