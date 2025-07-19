@@ -815,7 +815,18 @@ async function removeParticipant(participantId, adminParticipantId) {
       throw new Error('Участники должны быть в одной комнате');
     }
     
-    await client.query('DELETE FROM participants WHERE id = $1', [participantId]);
+    await client.query('BEGIN');
+    
+    try {
+      await client.query('UPDATE stories SET created_by = NULL WHERE created_by = $1', [participantId]);
+      
+      await client.query('DELETE FROM participants WHERE id = $1', [participantId]);
+      
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
     
     return { 
       success: true, 
@@ -846,6 +857,8 @@ async function cleanupDuplicateParticipants(roomId, currentParticipantId = null)
       const filteredRemoveIds = removeIds.filter(id => id !== currentParticipantId);
       
       if (filteredRemoveIds.length > 0) {
+        await client.query('UPDATE stories SET created_by = NULL WHERE created_by = ANY($1)', [filteredRemoveIds]);
+        
         await client.query(
           'DELETE FROM participants WHERE id = ANY($1)',
           [filteredRemoveIds]
@@ -868,6 +881,8 @@ async function cleanupDuplicateParticipants(roomId, currentParticipantId = null)
       const filteredRemoveIds = removeIds.filter(id => id !== currentParticipantId);
       
       if (filteredRemoveIds.length > 0) {
+        await client.query('UPDATE stories SET created_by = NULL WHERE created_by = ANY($1)', [filteredRemoveIds]);
+        
         await client.query(
           'DELETE FROM participants WHERE id = ANY($1)',
           [filteredRemoveIds]
