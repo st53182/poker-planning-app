@@ -343,25 +343,32 @@ class PlanningPokerRoom {
     }
 
     generateVotingCards() {
-        const votingCards = document.getElementById('votingCards');
-        const values = this.roomData.estimation_type === 'story_points' 
-            ? [0.5, 1, 2, 3, 5, 8, 13, 21, 34, '☕']
-            : [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, '☕'];
+    const votingCards = document.getElementById('votingCards');
+    const votingSection = document.getElementById('votingSection');
 
-        votingCards.innerHTML = '';
-        
-        values.forEach(value => {
-            const card = document.createElement('div');
-            card.className = 'voting-card bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors';
-            card.innerHTML = `<div class="text-lg font-bold">${value}</div>`;
-            
-            card.addEventListener('click', () => {
-                this.selectVote(value);
-            });
-            
-            votingCards.appendChild(card);
-        });
+    // Принудительно показываем секцию
+    if (votingSection) {
+        votingSection.classList.remove('hidden');
     }
+
+    const values = this.roomData.estimation_type === 'story_points'
+        ? [0.5, 1, 2, 3, 5, 8, 13, 21, 34, '☕']
+        : [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, '☕'];
+
+    votingCards.innerHTML = '';
+
+    values.forEach(value => {
+        const card = document.createElement('div');
+        card.className = 'voting-card bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors';
+        card.innerHTML = `<div class="text-lg font-bold">${value}</div>`;
+
+        card.addEventListener('click', () => {
+            this.selectVote(value);
+        });
+
+        votingCards.appendChild(card);
+    });
+}
 
     selectVote(value) {
         this.selectedVote = value;
