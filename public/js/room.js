@@ -160,6 +160,8 @@ class PlanningPokerRoom {
                 this.currentStory.voting_state = 'voting';
                 this.updateVotingState();
                 this.resetVotingState();
+                this.generateVotingCards();
+                this.selectedVote = null;
             }
         });
 
@@ -364,6 +366,12 @@ class PlanningPokerRoom {
     selectVote(value) {
         this.selectedVote = value;
         
+        const votingSection = document.getElementById('votingSection');
+        if (votingSection && votingSection.classList.contains('hidden')) {
+            console.warn('Voting section is hidden - cannot select vote yet');
+            return;
+        }
+        
         const selectedVoteElement = document.getElementById('selectedVoteValue');
         const submitVoteBtn = document.getElementById('submitVoteBtn');
         
@@ -377,8 +385,11 @@ class PlanningPokerRoom {
             card.classList.add('border-gray-200');
         });
         
-        event.target.closest('.voting-card').classList.add('selected', 'border-blue-500', 'bg-blue-50');
-        event.target.closest('.voting-card').classList.remove('border-gray-200');
+        const clickedCard = event?.target?.closest('.voting-card');
+        if (clickedCard) {
+            clickedCard.classList.add('selected', 'border-blue-500', 'bg-blue-50');
+            clickedCard.classList.remove('border-gray-200');
+        }
         
         selectedVoteElement.textContent = value;
         submitVoteBtn.classList.remove('hidden');
