@@ -243,7 +243,16 @@
             }
         }
 
-        loadRooms();
+        function waitForTranslations() {
+            if (window.translationManager && window.translationManager.translations && 
+                (window.translationManager.translations.ru || window.translationManager.translations.en)) {
+                loadRooms();
+            } else {
+                setTimeout(waitForTranslations, 100);
+            }
+        }
+        
+        waitForTranslations();
     </script>
     <script src="/js/translations.js"></script>
 </body>
