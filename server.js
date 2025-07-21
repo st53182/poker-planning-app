@@ -469,13 +469,18 @@ io.on('connection', (socket) => {
       
       connectedUsers.set(participant.id, socket.id);
       
-      if (from_dashboard && userId) {
+      if (userId) {
         const userRooms = await getUserRooms(userId);
         const ownsRoom = userRooms.some(r => r.encrypted_link === encrypted_link);
         
         if (ownsRoom) {
           await updateParticipantAdminStatus(participant.id, true);
           participant.is_admin = true;
+        }
+      } else if (session_id) {
+        const roomData = await getRoomById(room.id);
+        if (!roomData.owner_id && participant.is_admin) {
+          
         }
       }
       

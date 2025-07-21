@@ -314,9 +314,12 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
         participant.user_id = userId;
       } else {
         const participantId = require('uuid').v4();
+        
+        const isOwner = userId && room.owner_id === userId;
+        
         await client.query(
           'INSERT INTO participants (id, room_id, name, competence, is_admin, session_id, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          [participantId, room.id, name, competence, false, sessionId, userId]
+          [participantId, room.id, name, competence, isOwner, sessionId, userId]
         );
         
         participant = {
@@ -324,7 +327,7 @@ async function joinRoom(encryptedLink, name, competence, sessionId, userId = nul
           room_id: room.id,
           name: name,
           competence: competence,
-          is_admin: false,
+          is_admin: isOwner,
           session_id: sessionId,
           user_id: userId,
           joined_at: new Date()
