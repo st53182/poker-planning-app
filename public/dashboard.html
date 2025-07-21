@@ -141,7 +141,7 @@
                 
                 const estimationType = room.estimation_type === 'story_points' ? 'SP' : 'H';
                 const createdDate = new Date(room.created_at).toLocaleDateString('ru-RU');
-                const deleteButtonText = window.translationManager ? window.translationManager.t('dashboard.delete_room') : 'Удалить';
+                const deleteButtonText = window.translationManager ? window.translationManager.t('room.delete_room') : 'Удалить';
                 
                 roomCard.innerHTML = `
                     <div class="flex items-start justify-between mb-4">
@@ -207,7 +207,7 @@
 
         async function deleteRoomFromDashboard(roomId, roomName) {
             const confirmMessage = window.translationManager ? 
-                window.translationManager.t('dashboard.confirm_delete').replace('{roomName}', roomName) : 
+                window.translationManager.t('room.confirm_delete').replace('{roomName}', roomName) : 
                 `Вы уверены, что хотите удалить комнату "${roomName}"? Это действие нельзя отменить.`;
             
             if (!confirm(confirmMessage)) {
