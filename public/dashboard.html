@@ -141,6 +141,7 @@
                 
                 const estimationType = room.estimation_type === 'story_points' ? 'SP' : 'H';
                 const createdDate = new Date(room.created_at).toLocaleDateString('ru-RU');
+                const deleteButtonText = window.translationManager ? window.translationManager.t('dashboard.delete_room') : 'Удалить';
                 
                 roomCard.innerHTML = `
                     <div class="flex items-start justify-between mb-4">
@@ -148,21 +149,22 @@
                         <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${estimationType}</span>
                     </div>
                     <p class="text-gray-600 text-sm mb-4"> ${createdDate}</p>
-                    <div class="flex space-x-2">
-                        <a href="/room/${room.encrypted_link}?from_dashboard=true" 
-                           class="flex-1 bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm"
-                           data-translate="dashboard.enter_as_admin">
-                            Войти как админ
-                        </a>
-                        <button onclick="copyRoomLink('${room.encrypted_link}')" 
-                                class="bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 transition-colors text-sm"
-                                data-translate="dashboard.copy_link">
-                            Копировать ссылку
-                        </button>
+                    <div class="space-y-2">
+                        <div class="flex space-x-2">
+                            <a href="/room/${room.encrypted_link}?from_dashboard=true" 
+                               class="flex-1 bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm"
+                               data-translate="dashboard.enter_as_admin">
+                                Войти как админ
+                            </a>
+                            <button onclick="copyRoomLink('${room.encrypted_link}')" 
+                                    class="bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 transition-colors text-sm"
+                                    data-translate="dashboard.copy_link">
+                                Копировать ссылку
+                            </button>
+                        </div>
                         <button onclick="deleteRoomFromDashboard('${room.id}', '${escapeHtml(room.name)}')" 
-                                class="bg-red-100 text-red-700 py-2 px-4 rounded-md hover:bg-red-200 transition-colors text-sm"
-                                data-translate="dashboard.delete_room">
-                            Удалить
+                                class="w-full bg-red-100 text-red-700 py-2 px-4 rounded-md hover:bg-red-200 transition-colors text-sm">
+                            ${deleteButtonText}
                         </button>
                     </div>
                 `;
