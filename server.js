@@ -574,8 +574,15 @@ socket.on('start_voting', async (data) => {
         await submitVote(story_id, participant_id, participant.name, participant.competence, points);
         
         const storyVotes = await getStoryVotes(story_id);
-        const participantsResult = await client.query('SELECT COUNT(*) FROM participants WHERE room_id = $1', [room_id]);
-        const participantCount = parseInt(participantsResult.rows[0].count);
+        
+        const connectedParticipants = [];
+        for (const [participantId, socketId] of connectedUsers.entries()) {
+          const participantSocket = io.sockets.sockets.get(socketId);
+          if (participantSocket && participantSocket.room_id === room_id) {
+            connectedParticipants.push(participantId);
+          }
+        }
+        const participantCount = connectedParticipants.length;
         
         io.to(room_id).emit('vote_submitted', { vote_count: storyVotes.length, participant_count: participantCount });
       } finally {
