@@ -239,7 +239,7 @@ class PlanningPokerRoom {
         const authToken = localStorage.getItem('auth_token');
         const userInfo = localStorage.getItem('user_info');
         
-        if (authToken && userInfo && fromDashboard) {
+        if (authToken && userInfo) {
             const user = JSON.parse(userInfo);
             name = user.name;
             
@@ -286,15 +286,6 @@ class PlanningPokerRoom {
                 };
                 return;
             }
-        }
-        
-        if (authToken && userInfo && !name && !competence) {
-            const user = JSON.parse(userInfo);
-            name = user.name;
-            competence = 'Fullstack'; // Default competence for authenticated users
-            document.getElementById('joinModal').classList.add('hidden');
-            this.performJoin(encryptedLink, name, competence);
-            return;
         }
         
         if (!authToken) {
