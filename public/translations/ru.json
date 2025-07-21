@@ -82,6 +82,7 @@
     "estimation_type_hours": "Тип оценки: Часы",
     "claim_room": "Присвоить комнату",
     "delete_room": "Удалить комнату",
+    "confirm_delete": "Вы уверены, что хотите удалить комнату \"{roomName}\"? Это действие нельзя отменить.",
     "copy_link": "Скопировать ссылку",
     "admin": "Админ",
     "voting_states": {

@@ -82,6 +82,7 @@
     "estimation_type_hours": "Estimation Type: Hours",
     "claim_room": "Claim Room",
     "delete_room": "Delete Room",
+    "confirm_delete": "Are you sure you want to delete room \"{roomName}\"? This action cannot be undone.",
     "copy_link": "Copy Link",
     "admin": "Admin",
     "voting_states": {

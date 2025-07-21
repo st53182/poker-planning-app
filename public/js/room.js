@@ -227,7 +227,7 @@ class PlanningPokerRoom {
         });
     }
 
-    joinRoom() {
+    async joinRoom() {
         const urlParams = new URLSearchParams(window.location.search);
         const pathParts = window.location.pathname.split('/');
         const encryptedLink = pathParts[pathParts.length - 1];
@@ -242,10 +242,50 @@ class PlanningPokerRoom {
         if (authToken && userInfo && fromDashboard) {
             const user = JSON.parse(userInfo);
             name = user.name;
-            competence = 'Fullstack'; // Default competence for authenticated users
-            document.getElementById('joinModal').classList.add('hidden');
-            this.performJoin(encryptedLink, name, competence);
-            return;
+            
+            try {
+                const response = await fetch('/api/user/rooms', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const result = await response.json();
+                const ownsRoom = result.success && result.rooms.some(r => r.encrypted_link === encryptedLink);
+                
+                if (ownsRoom) {
+                    competence = 'Fullstack';
+                    document.getElementById('joinModal').classList.add('hidden');
+                    this.performJoin(encryptedLink, name, competence);
+                    return;
+                } else {
+                    document.getElementById('joinName').value = name;
+                    document.getElementById('joinName').disabled = true;
+                    document.getElementById('joinCompetence').value = 'Frontend';
+                    document.getElementById('joinModal').classList.remove('hidden');
+                    
+                    document.getElementById('joinRoomBtn').onclick = () => {
+                        competence = document.getElementById('joinCompetence').value;
+                        document.getElementById('joinModal').classList.add('hidden');
+                        document.getElementById('joinName').disabled = false;
+                        this.performJoin(encryptedLink, name, competence);
+                    };
+                    return;
+                }
+            } catch (error) {
+                console.error('Error checking room ownership:', error);
+                document.getElementById('joinName').value = name;
+                document.getElementById('joinName').disabled = true;
+                document.getElementById('joinCompetence').value = 'Frontend';
+                document.getElementById('joinModal').classList.remove('hidden');
+                
+                document.getElementById('joinRoomBtn').onclick = () => {
+                    competence = document.getElementById('joinCompetence').value;
+                    document.getElementById('joinModal').classList.add('hidden');
+                    document.getElementById('joinName').disabled = false;
+                    this.performJoin(encryptedLink, name, competence);
+                };
+                return;
+            }
         }
         
         if (authToken && userInfo && !name && !competence) {
