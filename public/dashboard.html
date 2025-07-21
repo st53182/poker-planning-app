@@ -159,6 +159,11 @@
                                 data-translate="dashboard.copy_link">
                             Копировать ссылку
                         </button>
+                        <button onclick="deleteRoomFromDashboard('${room.id}', '${escapeHtml(room.name)}')" 
+                                class="bg-red-100 text-red-700 py-2 px-4 rounded-md hover:bg-red-200 transition-colors text-sm"
+                                data-translate="dashboard.delete_room">
+                            Удалить
+                        </button>
                     </div>
                 `;
                 
@@ -196,6 +201,44 @@
             setTimeout(() => {
                 toast.remove();
             }, 3000);
+        }
+
+        async function deleteRoomFromDashboard(roomId, roomName) {
+            const confirmMessage = window.translationManager ? 
+                window.translationManager.t('dashboard.confirm_delete').replace('{roomName}', roomName) : 
+                `Вы уверены, что хотите удалить комнату "${roomName}"? Это действие нельзя отменить.`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                showToast('Необходимо войти в систему для удаления комнаты', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/delete-room', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ room_id: roomId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Комната успешно удалена');
+                    loadRooms();
+                } else {
+                    showToast(result.error || 'Ошибка при удалении комнаты', 'error');
+                }
+            } catch (error) {
+                showToast('Ошибка при удалении комнаты', 'error');
+            }
         }
 
         loadRooms();
