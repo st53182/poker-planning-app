@@ -131,6 +131,9 @@ class PlanningPokerRoom {
         ...p,
         is_temp_admin: tempIds.has(p.id)
     }));
+    if (this.participant) {
+        this.participant.is_temp_admin = tempIds.has(this.participant.id);
+    }
     this.updateParticipantsList();
 });
 
