@@ -1292,7 +1292,7 @@ class PlanningPokerRoom {
     }
 
     makeTempAdmin(participantId) {
-    if (!(this.isAdmin || this.participant.is_temp_admin)) {
+    if (!this.isAdmin) {
         this.showError('Только основной админ может назначать временных админов');
         return;
     }
