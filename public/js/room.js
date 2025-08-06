@@ -462,12 +462,17 @@ class PlanningPokerRoom {
     }
 
     setCurrentStory(storyId) {
-        this.socket.emit('set_current_story', {
-            room_id: this.roomData.room_id,
-            story_id: storyId,
-            participant_id: this.participant.id
-        });
+    if (!this.isAdmin) {
+        this.showError('Только администратор может выбрать историю');
+        return;
     }
+
+    this.socket.emit('set_current_story', {
+        room_id: this.roomData.room_id,
+        story_id: storyId,
+        participant_id: this.participant.id
+    });
+}
 
     startVoting() {
     if (!this.isAdmin) {
