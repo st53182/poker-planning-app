@@ -507,12 +507,22 @@ class PlanningPokerRoom {
     }
 
     revealVotes() {
-        this.socket.emit('reveal_votes', {
-            room_id: this.roomData.room_id,
-            story_id: this.currentStory.id,
-            participant_id: this.participant.id
-        });
+    if (!this.isAdmin) {
+        this.showError('Только администратор может раскрыть голоса');
+        return;
     }
+
+    if (!this.currentStory) {
+        this.showError('Нет активной истории для раскрытия голосов');
+        return;
+    }
+
+    this.socket.emit('reveal_votes', {
+        room_id: this.roomData.room_id,
+        story_id: this.currentStory.id,
+        participant_id: this.participant.id
+    });
+}
 
     finalizeEstimate() {
         const finalEstimate = parseFloat(document.getElementById('finalEstimateInput').value);
