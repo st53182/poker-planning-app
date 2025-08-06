@@ -85,6 +85,8 @@ class PlanningPokerRoom {
         });
 
 
+
+
         document.getElementById('dismissError').addEventListener('click', () => {
             document.getElementById('errorToast').classList.add('hidden');
         });
@@ -471,7 +473,7 @@ class PlanningPokerRoom {
     }
 
     setCurrentStory(storyId) {
-    if (!(this.isAdmin || this.participant.is_temp_admin)) {
+    if (!this.hasAdminRights()) {
         this.showError('Только администратор может выбрать историю');
         return;
     }
@@ -483,8 +485,12 @@ class PlanningPokerRoom {
     });
 }
 
+    hasAdminRights() {
+        return this.isAdmin || this.participant.is_temp_admin;
+    }
+
     startVoting() {
-    if (!(this.isAdmin || this.participant.is_temp_admin)) {
+    if (!this.hasAdminRights()) {
         this.showError('Только администратор может начать голосование');
         return;
     }
@@ -516,7 +522,7 @@ class PlanningPokerRoom {
     }
 
     revealVotes() {
-    if (!(this.isAdmin || this.participant.is_temp_admin)) {
+    if (!this.hasAdminRights()) {
         this.showError('Только администратор может раскрыть голоса');
         return;
     }
@@ -535,6 +541,10 @@ class PlanningPokerRoom {
 
     finalizeEstimate() {
         const finalEstimate = parseFloat(document.getElementById('finalEstimateInput').value);
+        if (!this.hasAdminRights()) {
+        this.showError('Только администратор может завершить голосование');
+        return;
+        }
 
         if (!finalEstimate) {
             this.showError('Пожалуйста, введите финальную оценку');
