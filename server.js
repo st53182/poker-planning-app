@@ -16,6 +16,8 @@ const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const OpenAI = require('openai');
+const tempAdmins = {}; // { room_id: Set([participantId, ...]) }
+
 const { 
   initializeDatabase, 
   createRoom, 
@@ -611,6 +613,31 @@ socket.on('start_voting', async (data) => {
       socket.emit('error', { message: error.message });
     }
   });
+
+  socket.on('grant_temp_admin', ({ room_id, participant_id }) => {
+    if (!tempAdmins[room_id]) {
+        tempAdmins[room_id] = new Set();
+    }
+
+    tempAdmins[room_id].add(participant_id);
+
+    io.to(room_id).emit('temp_admins_updated', {
+        room_id,
+        temp_admin_ids: Array.from(tempAdmins[room_id])
+    });
+});
+
+  socket.on('disconnect', () => {
+    // допустим у тебя есть participantId и roomId
+    if (tempAdmins[roomId]) {
+        tempAdmins[roomId].delete(participantId);
+    }
+
+    io.to(roomId).emit('temp_admins_updated', {
+        room_id: roomId,
+        temp_admin_ids: Array.from(tempAdmins[roomId] || [])
+    });
+});
   
   socket.on('finalize_estimate', async (data) => {
     try {

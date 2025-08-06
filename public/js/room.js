@@ -123,6 +123,15 @@ class PlanningPokerRoom {
             this.updateStoriesList();
         });
 
+        this.socket.on('temp_admins_updated', (data) => {
+    const tempIds = new Set(data.temp_admin_ids);
+    this.participants = this.participants.map(p => ({
+        ...p,
+        is_temp_admin: tempIds.has(p.id)
+    }));
+    this.updateParticipantsList();
+});
+
         this.socket.on('bulk_stories_created', (data) => {
             data.stories.forEach(story => {
                 this.stories.unshift(story);
@@ -462,7 +471,7 @@ class PlanningPokerRoom {
     }
 
     setCurrentStory(storyId) {
-    if (!this.isAdmin) {
+    if (!(this.isAdmin || this.participant.is_temp_admin)) {
         this.showError('Только администратор может выбрать историю');
         return;
     }
@@ -475,7 +484,7 @@ class PlanningPokerRoom {
 }
 
     startVoting() {
-    if (!this.isAdmin) {
+    if (!(this.isAdmin || this.participant.is_temp_admin)) {
         this.showError('Только администратор может начать голосование');
         return;
     }
@@ -494,20 +503,20 @@ class PlanningPokerRoom {
 
     submitVote() {
         if (this.selectedVote === null) return;
-        
+
         this.socket.emit('submit_vote', {
             room_id: this.roomData.room_id,
             story_id: this.currentStory.id,
             points: this.selectedVote,
             participant_id: this.participant.id
         });
-        
+
         document.getElementById('submitVoteBtn').classList.add('hidden');
         this.showToast('Голос отправлен!', 'success');
     }
 
     revealVotes() {
-    if (!this.isAdmin) {
+    if (!(this.isAdmin || this.participant.is_temp_admin)) {
         this.showError('Только администратор может раскрыть голоса');
         return;
     }
@@ -526,32 +535,32 @@ class PlanningPokerRoom {
 
     finalizeEstimate() {
         const finalEstimate = parseFloat(document.getElementById('finalEstimateInput').value);
-        
+
         if (!finalEstimate) {
             this.showError('Пожалуйста, введите финальную оценку');
             return;
         }
-        
+
         this.socket.emit('finalize_estimate', {
             room_id: this.roomData.room_id,
             story_id: this.currentStory.id,
             final_estimate: finalEstimate,
             participant_id: this.participant.id
         });
-        
+
         document.getElementById('finalEstimateInput').value = '';
     }
 
 
     removeParticipant(participantId) {
-        if (!this.isAdmin) {
+        if (!(this.isAdmin || this.participant.is_temp_admin)) {
             this.showError('Только администраторы могут удалять участников');
             return;
         }
-        
+
         const participant = this.participants.find(p => p.id === participantId);
         if (!participant) return;
-        
+
         if (confirm(`Вы уверены, что хотите удалить участника ${participant.name} из комнаты?`)) {
             this.socket.emit('remove_participant', {
                 room_id: this.roomData.room_id,
@@ -567,12 +576,12 @@ class PlanningPokerRoom {
             this.showError('Необходимо войти в систему для присвоения комнаты');
             return;
         }
-        
+
         if (!this.roomData || !this.roomData.room_id) {
             this.showError('Данные комнаты не загружены. Попробуйте обновить страницу.');
             return;
         }
-        
+
         try {
             const response = await fetch('/api/claim-room', {
                 method: 'POST',
@@ -584,13 +593,13 @@ class PlanningPokerRoom {
                     room_id: this.roomData.room_id
                 })
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 this.showToast(result.message, 'success');
                 document.getElementById('claimRoomBtn').classList.add('hidden');
-                
+
                 this.isAdmin = true;
                 this.participant.is_admin = true;
                 document.getElementById('adminBadge').classList.remove('hidden');
@@ -610,11 +619,11 @@ class PlanningPokerRoom {
             this.showError('Необходимо войти в систему для удаления комнаты');
             return;
         }
-        
+
         if (!confirm('Вы уверены, что хотите удалить эту комнату? Это действие нельзя отменить.')) {
             return;
         }
-        
+
         try {
             const response = await fetch('/api/delete-room', {
                 method: 'DELETE',
@@ -626,9 +635,9 @@ class PlanningPokerRoom {
                     room_id: this.roomData.room_id
                 })
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 this.showToast(result.message, 'success');
                 window.location.href = '/dashboard.html';
@@ -642,15 +651,15 @@ class PlanningPokerRoom {
 
     updateCurrentStory() {
         const section = document.getElementById('currentStorySection');
-        
+
         if (!this.currentStory) {
             section.classList.add('hidden');
             return;
         }
-        
+
         section.classList.remove('hidden');
         document.getElementById('currentStoryTitle').textContent = this.currentStory.title;
-        
+
         const descElement = document.getElementById('currentStoryDescription');
         if (this.currentStory.description) {
             descElement.textContent = this.currentStory.description;
@@ -658,7 +667,7 @@ class PlanningPokerRoom {
         } else {
             descElement.classList.add('hidden');
         }
-        
+
         this.updateVotingState();
     }
 
@@ -670,12 +679,12 @@ class PlanningPokerRoom {
         const startBtn = document.getElementById('startVotingBtn');
         const revealBtn = document.getElementById('revealVotesBtn');
         const finalizeControls = document.getElementById('finalizeControls');
-        
+
         if (!badge || !votingSection || !votingCards || !revealedSection || !startBtn || !revealBtn || !finalizeControls) {
             console.warn('Some voting UI elements not found, skipping state update');
             return;
         }
-        
+
         if (!this.currentStory) {
             votingSection.classList.add('hidden');
             votingCards.classList.add('hidden');
@@ -687,30 +696,30 @@ class PlanningPokerRoom {
             badge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800';
             return;
         }
-        
+
         const state = this.currentStory.voting_state;
-        
+
         const stateLabels = {
             'not_started': window.translationManager ? window.translationManager.t('room.voting_states.not_started') : 'Не начато',
             'voting': window.translationManager ? window.translationManager.t('room.voting_states.voting') : 'Голосование',
             'revealed': window.translationManager ? window.translationManager.t('room.voting_states.revealed') : 'Показано',
             'completed': window.translationManager ? window.translationManager.t('room.voting_states.completed') : 'Завершено'
         };
-        
+
         const stateClasses = {
             'not_started': 'bg-gray-100 text-gray-800',
             'voting': 'bg-blue-100 text-blue-800',
             'revealed': 'bg-green-100 text-green-800',
             'completed': 'bg-purple-100 text-purple-800'
         };
-        
+
         badge.textContent = stateLabels[state] || state;
         badge.className = `px-3 py-1 rounded-full text-sm font-medium ${stateClasses[state]}`;
-        
+
         startBtn.classList.toggle('hidden', state !== 'not_started');
         revealBtn.classList.toggle('hidden', state !== 'voting');
         finalizeControls.classList.toggle('hidden', state !== 'revealed');
-        
+
         votingSection.classList.toggle('hidden', state !== 'voting');
         votingCards.classList.toggle('hidden', state !== 'voting');
         revealedSection.classList.toggle('hidden', state !== 'revealed');
@@ -720,7 +729,7 @@ class PlanningPokerRoom {
         this.selectedVote = null;
         document.getElementById('submitVoteBtn').classList.add('hidden');
         document.getElementById('similarStoriesSection').classList.add('hidden');
-        
+
         document.querySelectorAll('.voting-card').forEach(card => {
             card.classList.remove('selected', 'border-blue-500', 'bg-blue-50');
             card.classList.add('border-gray-200');
@@ -730,7 +739,7 @@ class PlanningPokerRoom {
     displayRevealedVotes(votes) {
         const container = document.getElementById('revealedVotes');
         container.innerHTML = '';
-        
+
         votes.forEach(vote => {
             const voteElement = document.createElement('div');
             voteElement.className = 'bg-green-50 border border-green-200 rounded-lg p-4 text-center';
@@ -748,15 +757,15 @@ class PlanningPokerRoom {
         const list = document.getElementById('similarStoriesList');
         const valueSpan = document.getElementById('similarVoteValue');
         const typeSpan = document.getElementById('similarEstimationType');
-        
+
         if (stories.length === 0) {
             section.classList.add('hidden');
             return;
         }
-        
+
         valueSpan.textContent = this.selectedVote;
         typeSpan.textContent = this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов';
-        
+
         list.innerHTML = '';
         stories.slice(0, 5).forEach(story => {
             const storyElement = document.createElement('div');
@@ -764,61 +773,83 @@ class PlanningPokerRoom {
             storyElement.textContent = `"${story.title}" - ${story.points} ${this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов'}`;
             list.appendChild(storyElement);
         });
-        
+
         section.classList.remove('hidden');
     }
 
     updateParticipantsList() {
-        const container = document.getElementById('participantsList');
-        const count = document.getElementById('participantsCount');
-        
-        const connectedParticipants = this.participants.filter(participant => 
-            this.connectedParticipantIds && this.connectedParticipantIds.includes(participant.id)
-        );
-        count.textContent = connectedParticipants.length;
-        
-        if (this.participants.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-8">Пока нет участников.</p>';
+    const container = document.getElementById('participantsList');
+    const count = document.getElementById('participantsCount');
+
+    const connectedParticipants = this.participants.filter(participant =>
+        this.connectedParticipantIds && this.connectedParticipantIds.includes(participant.id)
+    );
+    count.textContent = connectedParticipants.length;
+
+    if (this.participants.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-8">Пока нет участников.</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+
+    this.participants.forEach(participant => {
+        if (this.connectedParticipantIds && !this.connectedParticipantIds.includes(participant.id)) {
             return;
         }
-        
-        container.innerHTML = '';
-        
-        this.participants.forEach(participant => {
-            if (this.connectedParticipantIds && !this.connectedParticipantIds.includes(participant.id)) {
-                return;
-            }
-            
-            const participantElement = document.createElement('div');
-            participantElement.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
-            
-            const adminBadge = participant.is_admin 
-                ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Админ</span>'
-                : '';
-            
-            const removeBtn = this.isAdmin && participant.id !== this.participant.id
-                ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">Удалить</button>`
-                : '';
-            
-            participantElement.innerHTML = `
-                <div>
-                    <div class="font-medium text-gray-900">${participant.name}</div>
-                    <div class="text-sm text-gray-600">${participant.competence}</div>
-                </div>
-                <div class="flex items-center space-x-2">
-                    ${adminBadge}
-                    ${removeBtn}
-                </div>
+
+        const participantElement = document.createElement('div');
+        participantElement.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+
+        // Бейдж "Админ" или "Временный админ"
+        let badgeHTML = '';
+        if (participant.is_admin) {
+            badgeHTML = '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Админ</span>';
+        } else if (participant.is_temp_admin) {
+            badgeHTML = '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Временный админ</span>';
+        }
+
+        // Кнопка "Удалить"
+        const removeBtn = (this.isAdmin || this.participant.is_temp_admin) && participant.id !== this.participant.id
+            ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">Удалить</button>`
+            : '';
+
+        // Кнопка "Сделать временным админом"
+        let makeTempAdminBtn = '';
+        if ((this.isAdmin || this.participant.is_temp_admin) &&
+            !participant.is_admin &&
+            !participant.is_temp_admin &&
+            participant.id !== this.participant.id) {
+
+            makeTempAdminBtn = `
+                <button onclick="room.makeTempAdmin('${participant.id}')"
+                    class="text-xs text-blue-600 hover:text-blue-800 ml-2 border border-blue-200 rounded px-2 py-1">
+                    Сделать временным админом
+                </button>
             `;
-            
-            container.appendChild(participantElement);
-        });
-    }
+        }
+
+        participantElement.innerHTML = `
+            <div>
+                <div class="font-medium text-gray-900">${participant.name}</div>
+                <div class="text-sm text-gray-600">${participant.competence}</div>
+            </div>
+            <div class="flex items-center space-x-2">
+                ${badgeHTML}
+                ${makeTempAdminBtn}
+                ${removeBtn}
+            </div>
+        `;
+
+        container.appendChild(participantElement);
+    });
+}
+
 
     updateStoriesList() {
         const container = document.getElementById('storiesList');
         const filterValue = document.getElementById('storyFilter').value;
-        
+
         let displayStories = this.stories;
         if (filterValue !== 'all') {
             if (filterValue === 'unestimated') {
@@ -827,29 +858,29 @@ class PlanningPokerRoom {
                 displayStories = this.stories.filter(s => s.final_estimate == filterValue);
             }
         }
-        
+
         if (displayStories.length === 0) {
             container.innerHTML = '<p class="text-gray-500 text-center py-8">Нет историй для отображения.</p>';
             return;
         }
-        
+
         container.innerHTML = '';
-        
+
         displayStories.forEach((story, index) => {
             const storyElement = document.createElement('div');
             const isCurrentStory = this.currentStory && story.id === this.currentStory.id;
-            
+
             storyElement.draggable = this.isAdmin;
             storyElement.dataset.storyId = story.id;
             storyElement.dataset.orderPosition = story.order_position || index;
-            
+
             const clickableClass = 'cursor-pointer hover:bg-gray-50 hover:border-blue-300';
             const clickHint = !isCurrentStory ? 'border-l-4 border-l-blue-400' : '';
-            
+
             storyElement.className = `p-4 border rounded-lg transition-colors ${clickableClass} ${clickHint} ${
                 isCurrentStory ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
             }`;
-            
+
             if (this.isAdmin) {
                 storyElement.addEventListener('dragstart', this.handleDragStart.bind(this));
                 storyElement.addEventListener('dragover', this.handleDragOver.bind(this));
@@ -861,35 +892,35 @@ class PlanningPokerRoom {
                 }
             });
             storyElement.title = 'Нажмите, чтобы начать оценку этой истории';
-            
-            const finalEstimateBadge = story.final_estimate 
+
+            const finalEstimateBadge = story.final_estimate
                 ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">${story.final_estimate} ${this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов'}</span>`
                 : '';
-            
+
             const stateClasses = {
                 'not_started': 'bg-gray-100 text-gray-800',
                 'voting': 'bg-blue-100 text-blue-800',
                 'revealed': 'bg-green-100 text-green-800',
                 'completed': 'bg-purple-100 text-purple-800'
             };
-            
+
             const stateLabels = {
                 'not_started': 'Не начато',
                 'voting': 'Голосование',
                 'revealed': 'Показано',
                 'completed': 'Завершено'
             };
-            
-            const clickHintText = !isCurrentStory ? 
+
+            const clickHintText = !isCurrentStory ?
                 '<div class="text-xs text-blue-600 mt-1">👆 Нажмите для начала оценки</div>' : '';
-            
+
             const actionButtons = this.isAdmin ? `
                 <div class="flex space-x-2 mt-2">
                     <button onclick="room.editStory('${story.id}')" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded">Редактировать</button>
                     <button onclick="room.deleteStory('${story.id}')" class="text-xs text-red-600 hover:text-red-800 px-2 py-1 bg-red-50 rounded">Удалить</button>
                 </div>
             ` : '';
-            
+
             storyElement.innerHTML = `
                 <div class="flex justify-between items-start">
                     <div class="flex-1">
@@ -906,7 +937,7 @@ class PlanningPokerRoom {
                     </div>
                 </div>
             `;
-            
+
             container.appendChild(storyElement);
         });
     }
@@ -914,7 +945,7 @@ class PlanningPokerRoom {
     showError(message) {
         document.getElementById('errorMessage').textContent = message;
         document.getElementById('errorToast').classList.remove('hidden');
-        
+
         setTimeout(() => {
             document.getElementById('errorToast').classList.add('hidden');
         }, 5000);
@@ -923,14 +954,14 @@ class PlanningPokerRoom {
     checkAuthenticationStatus() {
         const token = localStorage.getItem('auth_token');
         const user = localStorage.getItem('user_info');
-        
+
         if (token && user) {
             document.getElementById('dashboardBtn').classList.remove('hidden');
             const authLinks = document.getElementById('authLinks');
             if (authLinks) {
                 authLinks.classList.add('hidden');
             }
-            
+
             if (this.isAdmin && this.roomData && !this.roomData.owner_id) {
                 const claimBtn = document.getElementById('claimRoomBtn');
                 if (claimBtn) {
@@ -959,11 +990,11 @@ class PlanningPokerRoom {
             const authLinks = document.getElementById('authLinks');
             if (authLinks) {
                 authLinks.classList.remove('hidden');
-                
+
                 const currentUrl = encodeURIComponent(window.location.href);
                 const loginLink = document.getElementById('loginLink');
                 const registerLink = document.getElementById('registerLink');
-                
+
                 if (loginLink) {
                     loginLink.href = `/login?redirect=${currentUrl}`;
                 }
@@ -976,7 +1007,7 @@ class PlanningPokerRoom {
                 claimBtn.classList.add('hidden');
             }
         }
-        
+
         if (this.isAdmin && this.stories && this.stories.length > 0) {
             const adminHint = document.getElementById('adminHint');
             if (adminHint) {
@@ -1006,7 +1037,7 @@ class PlanningPokerRoom {
     async createStoriesFromImage() {
         const fileInput = document.getElementById('bulkImageUpload');
         const file = fileInput.files[0];
-        
+
         if (!file) {
             this.showError('Пожалуйста, выберите изображение');
             return;
@@ -1044,7 +1075,7 @@ class PlanningPokerRoom {
 
     async createStoriesFromText() {
         const text = document.getElementById('bulkTextInput').value.trim();
-        
+
         if (!text) {
             this.showError('Пожалуйста, введите текст');
             return;
@@ -1084,59 +1115,59 @@ class PlanningPokerRoom {
         const filteredStories = filterValue === 'all' ? this.stories :
             filterValue === 'unestimated' ? this.stories.filter(s => !s.final_estimate) :
             this.stories.filter(s => s.final_estimate == filterValue);
-        
+
         this.displayFilteredStories(filteredStories);
     }
 
     displayFilteredStories(stories) {
         const container = document.getElementById('storiesList');
-        
+
         if (stories.length === 0) {
             container.innerHTML = '<p class="text-gray-500 text-center py-8">Нет историй, соответствующих фильтру.</p>';
             return;
         }
-        
+
         container.innerHTML = '';
-        
+
         stories.forEach((story, index) => {
             const storyElement = document.createElement('div');
             storyElement.draggable = this.isAdmin;
             storyElement.dataset.storyId = story.id;
             storyElement.dataset.orderPosition = story.order_position || index;
-            
+
             if (this.isAdmin) {
                 storyElement.addEventListener('dragstart', this.handleDragStart.bind(this));
                 storyElement.addEventListener('dragover', this.handleDragOver.bind(this));
                 storyElement.addEventListener('drop', this.handleDrop.bind(this));
             }
-            
+
             const isCurrentStory = this.currentStory && this.currentStory.id === story.id;
             storyElement.className = `p-4 border rounded-lg cursor-pointer transition-colors ${
                 isCurrentStory ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
             }`;
-            
+
             if (this.isAdmin) {
                 storyElement.addEventListener('click', () => this.setCurrentStory(story));
             }
-            
-            const finalEstimateBadge = story.final_estimate 
+
+            const finalEstimateBadge = story.final_estimate
                 ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">${story.final_estimate} SP</span>`
                 : '';
-            
+
             const stateClasses = {
                 'not_started': 'bg-gray-100 text-gray-800',
                 'voting': 'bg-yellow-100 text-yellow-800',
                 'revealed': 'bg-blue-100 text-blue-800',
                 'finalized': 'bg-green-100 text-green-800'
             };
-            
+
             const stateLabels = {
                 'not_started': 'Не начата',
                 'voting': 'Голосование',
                 'revealed': 'Голоса открыты',
                 'finalized': 'Завершена'
             };
-            
+
             const clickHintText = this.isAdmin && !isCurrentStory ? ' (нажмите для выбора)' : '';
             const actionButtons = this.isAdmin ? `
                 <div class="flex space-x-2 mt-2">
@@ -1144,7 +1175,7 @@ class PlanningPokerRoom {
                     <button onclick="room.deleteStory('${story.id}')" class="text-xs text-red-600 hover:text-red-800">Удалить</button>
                 </div>
             ` : '';
-            
+
             storyElement.innerHTML = `
                 <div class="flex justify-between items-start">
                     <div class="flex-1">
@@ -1160,7 +1191,7 @@ class PlanningPokerRoom {
                     </div>
                 </div>
             `;
-            
+
             container.appendChild(storyElement);
         });
     }
@@ -1222,15 +1253,15 @@ class PlanningPokerRoom {
         e.preventDefault();
         const draggedStoryId = e.dataTransfer.getData('text/plain');
         const targetElement = e.target.closest('[data-story-id]');
-        
+
         if (!targetElement) return;
-        
+
         const targetStoryId = targetElement.dataset.storyId;
-        
+
         if (draggedStoryId !== targetStoryId) {
             this.reorderStories(draggedStoryId, targetStoryId);
         }
-        
+
         document.querySelectorAll('[data-story-id]').forEach(el => {
             el.style.opacity = '1';
         });
@@ -1239,26 +1270,38 @@ class PlanningPokerRoom {
     reorderStories(draggedStoryId, targetStoryId) {
         const draggedIndex = this.stories.findIndex(s => s.id === draggedStoryId);
         const targetIndex = this.stories.findIndex(s => s.id === targetStoryId);
-        
+
         if (draggedIndex === -1 || targetIndex === -1) return;
-        
+
         const storyOrders = [];
         const newStories = [...this.stories];
         const [draggedStory] = newStories.splice(draggedIndex, 1);
         newStories.splice(targetIndex, 0, draggedStory);
-        
+
         newStories.forEach((story, index) => {
             storyOrders.push({
                 storyId: story.id,
                 orderPosition: index + 1
             });
         });
-        
+
         this.socket.emit('reorder_stories', {
             room_id: this.roomData.room_id,
             story_orders: storyOrders
         });
     }
+
+    makeTempAdmin(participantId) {
+    if (!(this.isAdmin || this.participant.is_temp_admin)) {
+        this.showError('Только основной админ может назначать временных админов');
+        return;
+    }
+
+    this.socket.emit('grant_temp_admin', {
+        room_id: this.roomData.room_id,
+        participant_id: participantId
+    });
+}
 
     updateLocalStoryOrder(storyOrders) {
         const orderMap = {};
