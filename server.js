@@ -447,7 +447,7 @@ app.delete('/api/delete-room', authenticateToken, async (req, res) => {
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
-  
+
   socket.on('join_room_by_link', async (data) => {
     try {
       const { encrypted_link, name, competence, session_id, auth_token, from_dashboard } = data;
@@ -628,15 +628,14 @@ socket.on('start_voting', async (data) => {
 });
 
   socket.on('disconnect', () => {
-    // допустим у тебя есть participantId и roomId
-    if (tempAdmins[roomId]) {
-        tempAdmins[roomId].delete(participantId);
-    }
+    if (socket.room_id && socket.participant_id && tempAdmins[socket.room_id]) {
+        tempAdmins[socket.room_id].delete(socket.participant_id);
 
-    io.to(roomId).emit('temp_admins_updated', {
-        room_id: roomId,
-        temp_admin_ids: Array.from(tempAdmins[roomId] || [])
-    });
+        io.to(socket.room_id).emit('temp_admins_updated', {
+            room_id: socket.room_id,
+            temp_admin_ids: Array.from(tempAdmins[socket.room_id])
+        });
+    }
 });
   
   socket.on('finalize_estimate', async (data) => {
