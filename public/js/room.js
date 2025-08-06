@@ -470,12 +470,22 @@ class PlanningPokerRoom {
     }
 
     startVoting() {
-        this.socket.emit('start_voting', {
-            room_id: this.roomData.room_id,
-            story_id: this.currentStory.id,
-            participant_id: this.participant.id
-        });
+    if (!this.isAdmin) {
+        this.showError('Только администратор может начать голосование');
+        return;
     }
+
+    if (!this.currentStory) {
+        this.showError('Сначала выберите историю для голосования');
+        return;
+    }
+
+    this.socket.emit('start_voting', {
+        room_id: this.roomData.room_id,
+        story_id: this.currentStory.id,
+        participant_id: this.participant.id
+    });
+}
 
     submitVote() {
         if (this.selectedVote === null) return;
