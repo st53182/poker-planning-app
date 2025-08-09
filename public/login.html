@@ -147,6 +147,7 @@ if (pendingRoomId) {
         },
         body: JSON.stringify({ room_id: pendingRoomId })
     });
+    localStorage.removeItem('pending_room_id');
 
     const link = localStorage.getItem('pending_room_link');
     const name = localStorage.getItem('pending_participant_name');

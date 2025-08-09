@@ -381,8 +381,10 @@ class PlanningPokerRoom {
         const token = localStorage.getItem('auth_token');
 const claimBtn = document.getElementById('claimRoomBtn');
 if (claimBtn) {
-    const showClaim = !!token && !data.owner_id;
-    claimBtn.style.display = showClaim ? 'inline-flex' : 'none';
+  // Показываем кнопку, если владелец не назначен и пользователь залогинен
+  const shouldShowClaim = !!token && !data.owner_id;
+  claimBtn.classList.toggle('hidden', !shouldShowClaim);
+  claimBtn.style.display = shouldShowClaim ? 'inline-flex' : 'none';
 }
         if (this.isAdmin) {
             document.getElementById('adminBadge').classList.remove('hidden');
