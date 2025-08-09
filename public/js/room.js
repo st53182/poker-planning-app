@@ -248,6 +248,13 @@ class PlanningPokerRoom {
         
         let name = urlParams.get('name');
         let competence = urlParams.get('competence');
+
+        if (name && competence) {
+    document.getElementById('joinModal').classList.add('hidden');
+    this.performJoin(encryptedLink, name, competence);
+    return;
+}
+
         const fromDashboard = urlParams.get('from_dashboard') === 'true';
         
         const authToken = localStorage.getItem('auth_token');
@@ -267,11 +274,12 @@ class PlanningPokerRoom {
                 const ownsRoom = result.success && result.rooms.some(r => r.encrypted_link === encryptedLink);
                 
                 if (ownsRoom) {
-                    competence = 'Fullstack';
-                    document.getElementById('joinModal').classList.add('hidden');
-                    this.performJoin(encryptedLink, name, competence);
-                    return;
-                } else {
+    // оставляем компетенцию из URL, если она была; иначе дефолт
+    competence = competence || 'Fullstack';
+    document.getElementById('joinModal').classList.add('hidden');
+    this.performJoin(encryptedLink, name, competence);
+    return;
+} else {
                     document.getElementById('joinName').value = name;
                     document.getElementById('joinName').disabled = true;
                     document.getElementById('joinCompetence').value = 'Frontend';
@@ -370,7 +378,12 @@ class PlanningPokerRoom {
         document.getElementById('estimationType').textContent = `Тип оценки: ${data.estimation_type === 'story_points' ? 'Стори поинты' : 'Часы'}`;
         document.getElementById('userName').textContent = data.participant.name;
         document.getElementById('userCompetence').textContent = data.participant.competence;
-        
+        const token = localStorage.getItem('auth_token');
+const claimBtn = document.getElementById('claimRoomBtn');
+if (claimBtn) {
+    const showClaim = !!token && !data.owner_id;
+    claimBtn.style.display = showClaim ? 'inline-flex' : 'none';
+}
         if (this.isAdmin) {
             document.getElementById('adminBadge').classList.remove('hidden');
             document.getElementById('adminControls').classList.remove('hidden');
