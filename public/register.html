@@ -193,7 +193,30 @@
                 if (result.success) {
                     localStorage.setItem('auth_token', result.token);
                     localStorage.setItem('user_info', JSON.stringify(result.user));
-                    
+                    const pendingRoomId = localStorage.getItem('pending_room_id');
+if (pendingRoomId) {
+    await fetch('/api/claim-room', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${result.token}`
+        },
+        body: JSON.stringify({ room_id: pendingRoomId })
+    });
+
+    const link = localStorage.getItem('pending_room_link');
+    const name = localStorage.getItem('pending_participant_name');
+    const competence = localStorage.getItem('pending_participant_competence');
+
+    // очищаем временные данные
+    localStorage.removeItem('pending_room_id');
+    localStorage.removeItem('pending_room_link');
+    localStorage.removeItem('pending_participant_name');
+    localStorage.removeItem('pending_participant_competence');
+
+    window.location.href = `/room/${link}?name=${encodeURIComponent(name)}&competence=${encodeURIComponent(competence)}`;
+    return;
+}
                     const urlParams = new URLSearchParams(window.location.search);
                     const redirectUrl = urlParams.get('redirect');
                     

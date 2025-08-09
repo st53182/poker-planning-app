@@ -194,7 +194,10 @@
 
                 if (result.success) {
                     localStorage.setItem('session_id', Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
-                    
+                    localStorage.setItem('pending_room_id', result.room.id);
+                    localStorage.setItem('pending_room_link', result.room.encrypted_link || result.room_link);
+                    localStorage.setItem('pending_participant_name', data.creator_name);
+                    localStorage.setItem('pending_participant_competence', data.creator_competence);
                     window.location.href = `/room/${result.room_link}?name=${encodeURIComponent(data.creator_name)}&competence=${encodeURIComponent(data.creator_competence)}`;
                 } else {
                     const errorMessage = result.error || (window.translationManager ? window.translationManager.t('index.create_room_error') : 'Не удалось создать комнату');
