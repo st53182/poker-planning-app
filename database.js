@@ -523,56 +523,84 @@ async function updateRoomCurrentStory(roomId, storyId) {
 }
 
 
-async function claimRoom(encryptedLink, userId) {
+async function claimRoom(roomId, userId) {
   const client = await pool.connect();
   try {
-    console.log('claimRoom called with:', { encryptedLink, userId });
-    
+    console.log('claimRoom called with:', { roomId, userId });
+
+    // 1) Комната по ID
     const roomResult = await client.query(
-      'SELECT id, owner_id FROM rooms WHERE encrypted_link = $1',
-      [encryptedLink]
+      'SELECT id, owner_id FROM rooms WHERE id = $1',
+      [roomId]
     );
-    
-    console.log('Room query result:', roomResult.rows);
-    
     if (roomResult.rows.length === 0) {
       throw new Error('Комната не найдена');
     }
-    
     const room = roomResult.rows[0];
-    if (room.owner_id !== null) {
+
+    // 2) Уже есть владелец?
+    if (room.owner_id !== null && room.owner_id !== userId) {
       throw new Error('Комната уже принадлежит другому пользователю');
     }
-    
-    const allParticipantsResult = await client.query(
-      'SELECT id, name, competence, is_admin, user_id FROM participants WHERE room_id = $1',
-      [room.id]
-    );
-    console.log('All participants in room:', allParticipantsResult.rows);
-    
-    const participantResult = await client.query(
-      'SELECT id, is_admin FROM participants WHERE room_id = $1 AND user_id = $2',
+
+    // 3) Есть ли участник, уже связанный с этим пользователем?
+    let participantResult = await client.query(
+      'SELECT id, is_admin FROM participants WHERE room_id = $1 AND user_id = $2 ORDER BY is_admin DESC, joined_at ASC LIMIT 1',
       [room.id, userId]
     );
-    
-    console.log('Participant query result:', participantResult.rows);
-    
+
+    // 4) Если нет — попробуем привязать гостевого админа (создателя) к этому userId
     if (participantResult.rows.length === 0) {
-      throw new Error('Вы не являетесь участником этой комнаты');
+      const guestAdminResult = await client.query(
+        `SELECT id, is_admin FROM participants 
+         WHERE room_id = $1 AND user_id IS NULL AND is_admin = true
+         ORDER BY joined_at ASC LIMIT 1`,
+        [room.id]
+      );
+
+      if (guestAdminResult.rows.length === 0) {
+        // Если нет гостевого админа — попробуем привязать любого гостя (крайний случай)
+        const anyGuestResult = await client.query(
+          `SELECT id, is_admin FROM participants 
+           WHERE room_id = $1 AND user_id IS NULL
+           ORDER BY is_admin DESC, joined_at ASC LIMIT 1`,
+          [room.id]
+        );
+
+        if (anyGuestResult.rows.length === 0) {
+          throw new Error('Вы не являетесь участником этой комнаты');
+        }
+
+        // Привяжем этого гостя к пользователю
+        await client.query(
+          'UPDATE participants SET user_id = $1 WHERE id = $2',
+          [userId, anyGuestResult.rows[0].id]
+        );
+        participantResult = anyGuestResult;
+      } else {
+        // Привяжем гостевого админа к пользователю
+        await client.query(
+          'UPDATE participants SET user_id = $1 WHERE id = $2',
+          [userId, guestAdminResult.rows[0].id]
+        );
+        participantResult = guestAdminResult;
+      }
     }
-    
+
     const participant = participantResult.rows[0];
-    
+
+    // 5) Назначаем владельца комнаты на этого пользователя
     await client.query(
       'UPDATE rooms SET owner_id = $1 WHERE id = $2',
       [userId, room.id]
     );
-    
+
+    // 6) Убедимся, что участник — админ
     await client.query(
       'UPDATE participants SET is_admin = true WHERE room_id = $1 AND user_id = $2',
       [room.id, userId]
     );
-    
+
     console.log('Room claimed successfully');
     return { success: true, message: 'Комната успешно присвоена' };
   } finally {
