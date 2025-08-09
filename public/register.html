@@ -235,7 +235,7 @@ if (pendingRoomId) {
                 document.getElementById('registerForm').style.display = 'block';
                 document.getElementById('error').classList.remove('hidden');
                 document.getElementById('errorMessage').textContent = error.message;
-                loadCaptcha();
+                window.addEventListener('DOMContentLoaded', loadCaptcha);
             }
         });
 
