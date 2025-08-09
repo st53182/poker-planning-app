@@ -283,6 +283,20 @@ class PlanningPokerRoom {
                     document.getElementById('joinName').value = name;
                     document.getElementById('joinName').disabled = true;
                     document.getElementById('joinCompetence').value = 'Frontend';
+                    const token = localStorage.getItem('auth_token');
+const userInfoRaw = localStorage.getItem('user_info');
+if (token && userInfoRaw) {
+    try {
+        const userInfo = JSON.parse(userInfoRaw);
+        const nameInput = document.getElementById('nameInput');
+        if (nameInput && userInfo.name) {
+            nameInput.value = userInfo.name;
+            nameInput.readOnly = true; // запрещаем менять имя
+        }
+    } catch (e) {
+        console.warn('Ошибка парсинга user_info из localStorage', e);
+    }
+}
                     document.getElementById('joinModal').classList.remove('hidden');
                     
                     document.getElementById('joinRoomBtn').onclick = () => {
