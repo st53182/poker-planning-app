@@ -749,7 +749,6 @@ if (claimBtn) {
         aiContent.classList.add('hidden');
         
         // Hide previous results
-        document.getElementById('aiEstimate').classList.add('hidden');
         document.getElementById('aiReasoning').classList.add('hidden');
         document.getElementById('aiRisks').classList.add('hidden');
         document.getElementById('aiQuestions').classList.add('hidden');
@@ -764,7 +763,8 @@ if (claimBtn) {
             const result = await window.apiClient.post('/api/ai-story-analysis', {
                 room_id: this.roomData.room_id,
                 story_title: story.title,
-                story_description: story.description || ''
+                story_description: story.description || '',
+                competence: this.participant?.competence || 'Fullstack'
             });
             
             if (!result || !result.success) {
@@ -776,26 +776,6 @@ if (claimBtn) {
             // Hide loading, show content
             aiLoading.classList.add('hidden');
             aiContent.classList.remove('hidden');
-            
-            // Display suggested estimate
-            if (analysis.suggestedEstimate !== null && analysis.suggestedEstimate !== undefined) {
-                const estimateEl = document.getElementById('aiSuggestedEstimate');
-                const confidenceEl = document.getElementById('aiConfidence');
-                const estimateSection = document.getElementById('aiEstimate');
-                
-                if (estimateEl && confidenceEl && estimateSection) {
-                    const estimationType = this.roomData.estimation_type === 'story_points' ? 'SP' : 'часов';
-                    estimateEl.textContent = `${analysis.suggestedEstimate} ${estimationType}`;
-                    
-                    const confidenceText = {
-                        'high': 'Высокая уверенность',
-                        'medium': 'Средняя уверенность',
-                        'low': 'Низкая уверенность'
-                    };
-                    confidenceEl.textContent = confidenceText[analysis.confidence] || analysis.confidence;
-                    estimateSection.classList.remove('hidden');
-                }
-            }
             
             // Display reasoning
             if (analysis.reasoning) {
