@@ -28,6 +28,7 @@ const {
   deleteStory,
   updateStoryOrder,
   getSimilarStories,
+  getRoomStoriesForAI,
   getStoryVotes,
   submitVote,
   updateStoryVotingState,
@@ -111,7 +112,15 @@ function authenticateToken(req, res, next) {
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ error: 'Недействительный токен' });
+      // Check if token is expired
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Токен истек. Пожалуйста, войдите снова.' });
+      }
+      // Check if token is invalid
+      if (err.name === 'JsonWebTokenError') {
+        return res.status(403).json({ error: 'Недействительный токен' });
+      }
+      return res.status(403).json({ error: 'Ошибка проверки токена' });
     }
     req.user = user;
     next();
@@ -282,6 +291,86 @@ app.post('/api/bulk-create-stories-text', async (req, res) => {
     res.json({ success: true, stories: createdStories });
   } catch (error) {
     console.error('Error in bulk-create-stories-text:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/ai-story-analysis', async (req, res) => {
+  try {
+    const { room_id, story_title, story_description } = req.body;
+    
+    if (!openai) {
+      return res.status(500).json({ error: 'OpenAI API key not configured' });
+    }
+    
+    if (!room_id || !story_title) {
+      return res.status(400).json({ error: 'room_id и story_title обязательны' });
+    }
+    
+    // Get previous stories with estimates from the room
+    const previousStories = await getRoomStoriesForAI(room_id);
+    
+    // Get room info to know estimation type
+    const room = await getRoomById(room_id);
+    const estimationType = room.estimation_type || 'story_points';
+    
+    // Build context from previous stories
+    const previousStoriesContext = previousStories.length > 0
+      ? previousStories.slice(0, 20).map(s => 
+          `"${s.title}"${s.description ? ` - ${s.description}` : ''} → ${s.final_estimate} ${estimationType === 'story_points' ? 'SP' : 'часов'}`
+        ).join('\n')
+      : 'Пока нет оцененных историй в этой комнате.';
+    
+    const systemPrompt = `Ты - опытный специалист по планированию в Agile команде. Твоя задача - помочь оценить пользовательскую историю в стори поинтах, основываясь на предыдущих оценках в комнате.
+
+Тип оценки: ${estimationType === 'story_points' ? 'Стори поинты (Fibonacci: 0.5, 1, 2, 3, 5, 8, 13, 21, 34)' : 'Часы (1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64)'}
+
+Предыдущие оценки в комнате:
+${previousStoriesContext}
+
+Верни JSON объект со следующей структурой:
+{
+  "suggestedEstimate": число или null (предложенная оценка на основе предыдущих),
+  "confidence": "high" | "medium" | "low" (уверенность в оценке),
+  "risks": ["риск1", "риск2", ...] (массив потенциальных рисков),
+  "clarifyingQuestions": ["вопрос1", "вопрос2", ...] (массив уточняющих вопросов для груминга),
+  "reasoning": "краткое объяснение оценки" (1-2 предложения)
+}
+
+Риски должны быть конкретными и полезными. Вопросы должны быть открытыми и помогать уточнить требования.`;
+
+    const userPrompt = `Проанализируй следующую историю:
+Название: ${story_title}
+${story_description ? `Описание: ${story_description}` : 'Описание отсутствует'}
+
+Верни только валидный JSON без markdown форматирования.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    });
+
+    let analysis;
+    try {
+      const content = response.choices[0].message.content.trim();
+      // Remove markdown code blocks if present
+      const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : cleanedContent;
+      analysis = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('Failed to parse AI analysis response:', response.choices[0].message.content);
+      return res.status(500).json({ error: 'Не удалось обработать ответ AI' });
+    }
+    
+    res.json({ success: true, analysis });
+  } catch (error) {
+    console.error('Error in ai-story-analysis:', error);
     res.status(500).json({ error: error.message });
   }
 });

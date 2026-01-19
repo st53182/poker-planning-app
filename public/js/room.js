@@ -108,6 +108,15 @@ class PlanningPokerRoom {
                 this.deleteRoom();
             });
         }
+        
+        const refreshAIBtn = document.getElementById('refreshAIBtn');
+        if (refreshAIBtn) {
+            refreshAIBtn.addEventListener('click', () => {
+                if (this.currentStory) {
+                    this.requestAIAnalysis(this.currentStory);
+                }
+            });
+        }
     }
 
     initializeSocketListeners() {
@@ -265,12 +274,11 @@ class PlanningPokerRoom {
             name = user.name;
             
             try {
-                const response = await fetch('/api/user/rooms', {
+                const result = await window.apiClient?.get('/api/user/rooms') || await fetch('/api/user/rooms', {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
                     }
-                });
-                const result = await response.json();
+                }).then(r => r.json());
                 const ownsRoom = result.success && result.rooms.some(r => r.encrypted_link === encryptedLink);
                 
                 if (ownsRoom) {
@@ -515,6 +523,12 @@ if (claimBtn) {
         story_id: storyId,
         participant_id: this.participant.id
     });
+    
+    // Trigger AI analysis when story is selected
+    const story = this.stories.find(s => s.id === storyId);
+    if (story) {
+        this.requestAIAnalysis(story);
+    }
 }
 
     hasAdminRights() {
@@ -625,7 +639,9 @@ if (claimBtn) {
         }
 
         try {
-            const response = await fetch('/api/claim-room', {
+            const result = await window.apiClient?.post('/api/claim-room', {
+                room_id: this.roomData.room_id
+            }) || await fetch('/api/claim-room', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -634,9 +650,7 @@ if (claimBtn) {
                 body: JSON.stringify({
                     room_id: this.roomData.room_id
                 })
-            });
-
-            const result = await response.json();
+            }).then(r => r.json());
 
             if (result.success) {
                 this.showToast(result.message, 'success');
@@ -667,7 +681,9 @@ if (claimBtn) {
         }
 
         try {
-            const response = await fetch('/api/delete-room', {
+            const result = await window.apiClient?.delete('/api/delete-room', {
+                room_id: this.roomData.room_id
+            }) || await fetch('/api/delete-room', {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -676,9 +692,7 @@ if (claimBtn) {
                 body: JSON.stringify({
                     room_id: this.roomData.room_id
                 })
-            });
-
-            const result = await response.json();
+            }).then(r => r.json());
 
             if (result.success) {
                 this.showToast(result.message, 'success');
@@ -711,6 +725,123 @@ if (claimBtn) {
         }
 
         this.updateVotingState();
+        
+        // Request AI analysis for current story
+        this.requestAIAnalysis(this.currentStory);
+    }
+    
+    async requestAIAnalysis(story) {
+        if (!story || !this.roomData || !this.roomData.room_id) {
+            return;
+        }
+        
+        const aiSection = document.getElementById('aiAnalysisSection');
+        const aiLoading = document.getElementById('aiAnalysisLoading');
+        const aiContent = document.getElementById('aiAnalysisContent');
+        
+        if (!aiSection || !aiLoading || !aiContent) {
+            return;
+        }
+        
+        // Show loading state
+        aiSection.classList.remove('hidden');
+        aiLoading.classList.remove('hidden');
+        aiContent.classList.add('hidden');
+        
+        // Hide previous results
+        document.getElementById('aiEstimate').classList.add('hidden');
+        document.getElementById('aiReasoning').classList.add('hidden');
+        document.getElementById('aiRisks').classList.add('hidden');
+        document.getElementById('aiQuestions').classList.add('hidden');
+        
+        try {
+            if (!window.apiClient) {
+                console.warn('API client not available');
+                aiSection.classList.add('hidden');
+                return;
+            }
+            
+            const result = await window.apiClient.post('/api/ai-story-analysis', {
+                room_id: this.roomData.room_id,
+                story_title: story.title,
+                story_description: story.description || ''
+            });
+            
+            if (!result || !result.success) {
+                throw new Error(result?.error || 'Ошибка получения анализа');
+            }
+            
+            const analysis = result.analysis;
+            
+            // Hide loading, show content
+            aiLoading.classList.add('hidden');
+            aiContent.classList.remove('hidden');
+            
+            // Display suggested estimate
+            if (analysis.suggestedEstimate !== null && analysis.suggestedEstimate !== undefined) {
+                const estimateEl = document.getElementById('aiSuggestedEstimate');
+                const confidenceEl = document.getElementById('aiConfidence');
+                const estimateSection = document.getElementById('aiEstimate');
+                
+                if (estimateEl && confidenceEl && estimateSection) {
+                    const estimationType = this.roomData.estimation_type === 'story_points' ? 'SP' : 'часов';
+                    estimateEl.textContent = `${analysis.suggestedEstimate} ${estimationType}`;
+                    
+                    const confidenceText = {
+                        'high': 'Высокая уверенность',
+                        'medium': 'Средняя уверенность',
+                        'low': 'Низкая уверенность'
+                    };
+                    confidenceEl.textContent = confidenceText[analysis.confidence] || analysis.confidence;
+                    estimateSection.classList.remove('hidden');
+                }
+            }
+            
+            // Display reasoning
+            if (analysis.reasoning) {
+                const reasoningEl = document.getElementById('aiReasoningText');
+                const reasoningSection = document.getElementById('aiReasoning');
+                if (reasoningEl && reasoningSection) {
+                    reasoningEl.textContent = analysis.reasoning;
+                    reasoningSection.classList.remove('hidden');
+                }
+            }
+            
+            // Display risks
+            if (analysis.risks && Array.isArray(analysis.risks) && analysis.risks.length > 0) {
+                const risksList = document.getElementById('aiRisksList');
+                const risksSection = document.getElementById('aiRisks');
+                if (risksList && risksSection) {
+                    risksList.innerHTML = '';
+                    analysis.risks.forEach(risk => {
+                        const li = document.createElement('li');
+                        li.textContent = risk;
+                        risksList.appendChild(li);
+                    });
+                    risksSection.classList.remove('hidden');
+                }
+            }
+            
+            // Display clarifying questions
+            if (analysis.clarifyingQuestions && Array.isArray(analysis.clarifyingQuestions) && analysis.clarifyingQuestions.length > 0) {
+                const questionsList = document.getElementById('aiQuestionsList');
+                const questionsSection = document.getElementById('aiQuestions');
+                if (questionsList && questionsSection) {
+                    questionsList.innerHTML = '';
+                    analysis.clarifyingQuestions.forEach(question => {
+                        const li = document.createElement('li');
+                        li.textContent = question;
+                        questionsList.appendChild(li);
+                    });
+                    questionsSection.classList.remove('hidden');
+                }
+            }
+        } catch (error) {
+            console.error('Error requesting AI analysis:', error);
+            aiLoading.classList.add('hidden');
+            // Don't show error to user, just hide the section
+            aiSection.classList.add('hidden');
+        }
     }
 
     updateVotingState() {
@@ -1095,12 +1226,10 @@ if (claimBtn) {
         formData.append('participant_id', this.participant.id);
 
         try {
-            const response = await fetch('/api/bulk-create-stories-image', {
+            const result = await window.apiClient?.postFormData('/api/bulk-create-stories-image', formData) || await fetch('/api/bulk-create-stories-image', {
                 method: 'POST',
                 body: formData
-            });
-
-            const result = await response.json();
+            }).then(r => r.json());
             if (result.success) {
                 this.showToast(`Создано ${result.stories.length} историй из изображения`, 'success');
                 this.closeImageUploadModal();
@@ -1128,7 +1257,11 @@ if (claimBtn) {
         button.textContent = 'Обработка...';
 
         try {
-            const response = await fetch('/api/bulk-create-stories-text', {
+            const result = await window.apiClient?.post('/api/bulk-create-stories-text', {
+                room_id: this.roomData.room_id,
+                participant_id: this.participant.id,
+                text: text
+            }) || await fetch('/api/bulk-create-stories-text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1136,9 +1269,7 @@ if (claimBtn) {
                     participant_id: this.participant.id,
                     text: text
                 })
-            });
-
-            const result = await response.json();
+            }).then(r => r.json());
             if (result.success) {
                 this.showToast(`Создано ${result.stories.length} историй из текста`, 'success');
                 this.closeTextUploadModal();

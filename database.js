@@ -460,6 +460,25 @@ async function getSimilarStories(roomId, voteValue, competence) {
   }
 }
 
+async function getRoomStoriesForAI(roomId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'SELECT title, description, final_estimate, voting_state FROM stories WHERE room_id = $1 AND final_estimate IS NOT NULL ORDER BY created_at DESC',
+      [roomId]
+    );
+    
+    return result.rows.map(s => ({
+      title: s.title,
+      description: s.description || '',
+      final_estimate: s.final_estimate,
+      voting_state: s.voting_state
+    }));
+  } finally {
+    client.release();
+  }
+}
+
 async function getStoryVotes(storyId) {
   const client = await pool.connect();
   try {
@@ -941,6 +960,7 @@ module.exports = {
   deleteStory,
   updateStoryOrder,
   getSimilarStories,
+  getRoomStoriesForAI,
   getStoryVotes,
   submitVote,
   updateStoryVotingState,
