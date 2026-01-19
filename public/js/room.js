@@ -187,12 +187,19 @@ class PlanningPokerRoom {
                 this.resetVotingState();
                 this.generateVotingCards();
                 this.selectedVote = null;
+                // Reset counters - will be updated by voting_stats_updated event
+                this.updateVotingCounters(0, this.connectedParticipantIds?.length || 0);
             }
         });
 
         this.socket.on('vote_submitted', (data) => {
-            document.getElementById('voteCount').textContent = data.vote_count;
-            document.getElementById('participantCount').textContent = data.participant_count;
+            this.updateVotingCounters(data.vote_count, data.participant_count);
+        });
+        
+        this.socket.on('voting_stats_updated', (data) => {
+            if (this.currentStory && this.currentStory.id === data.story_id) {
+                this.updateVotingCounters(data.vote_count, data.participant_count);
+            }
         });
 
         this.socket.on('votes_revealed', (data) => {
@@ -224,6 +231,14 @@ class PlanningPokerRoom {
         this.socket.on('participants_updated', (data) => {
             this.connectedParticipantIds = data.connected_participant_ids;
             this.updateParticipantsList();
+            
+            // Update voting counters if voting is active
+            if (this.currentStory && this.currentStory.voting_state === 'voting') {
+                const participantCount = this.connectedParticipantIds?.length || 0;
+                const voteCountEl = document.getElementById('voteCount');
+                const currentVoteCount = voteCountEl ? parseInt(voteCountEl.textContent) || 0 : 0;
+                this.updateVotingCounters(currentVoteCount, participantCount);
+            }
         });
 
         this.socket.on('voting_interrupted', (data) => {
@@ -1469,6 +1484,18 @@ if (claimBtn) {
         });
         
         this.stories.sort((a, b) => (a.order_position || 0) - (b.order_position || 0));
+    }
+
+    updateVotingCounters(voteCount, participantCount) {
+        const voteCountEl = document.getElementById('voteCount');
+        const participantCountEl = document.getElementById('participantCount');
+        
+        if (voteCountEl) {
+            voteCountEl.textContent = voteCount || 0;
+        }
+        if (participantCountEl) {
+            participantCountEl.textContent = participantCount || 0;
+        }
     }
 
     showToast(message, type = 'info') {
