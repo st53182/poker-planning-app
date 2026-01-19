@@ -103,18 +103,16 @@
             if (!token) return;
 
             try {
-                const response = await fetch('/api/user/rooms', {
+                const result = await window.apiClient?.get('/api/user/rooms') || await fetch('/api/user/rooms', {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
-                });
+                }).then(r => r.json());
 
-                const result = await response.json();
-
-                if (result.success) {
+                if (result && result.success) {
                     displayRooms(result.rooms);
                 } else {
-                    throw new Error(result.error || 'Ошибка загрузки комнат');
+                    throw new Error(result?.error || 'Ошибка загрузки комнат');
                 }
             } catch (error) {
                 document.getElementById('loading').classList.add('hidden');
@@ -225,16 +223,14 @@
             }
             
             try {
-                const response = await fetch('/api/delete-room', {
+                const result = await window.apiClient?.delete('/api/delete-room', { room_id: roomId }) || await fetch('/api/delete-room', {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({ room_id: roomId })
-                });
-                
-                const result = await response.json();
+                }).then(r => r.json());
                 
                 if (result.success) {
                     showToast('Комната успешно удалена');
@@ -258,6 +254,7 @@
         
         waitForTranslations();
     </script>
+    <script src="/js/api-utils.js"></script>
     <script src="/js/translations.js"></script>
 </body>
 </html>
