@@ -69,7 +69,41 @@ const upload = multer({
 const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-const connectedUsers = new Map();
+const connectedUsers = new Map(); // participant_id -> socket_id
+
+// Helper function to get connected participants for a room
+function getConnectedParticipantsForRoom(roomId) {
+  const connectedParticipants = [];
+  for (const [participantId, socketId] of connectedUsers.entries()) {
+    const participantSocket = io.sockets.sockets.get(socketId);
+    if (participantSocket && participantSocket.room_id === roomId) {
+      connectedParticipants.push(participantId);
+    }
+  }
+  return connectedParticipants;
+}
+
+// Helper function to update voting stats for a room
+async function updateVotingStats(roomId, storyId) {
+  try {
+    const connectedParticipants = getConnectedParticipantsForRoom(roomId);
+    const participantCount = connectedParticipants.length;
+    
+    let voteCount = 0;
+    if (storyId) {
+      const storyVotes = await getStoryVotes(storyId);
+      voteCount = storyVotes.length;
+    }
+    
+    io.to(roomId).emit('voting_stats_updated', {
+      vote_count: voteCount,
+      participant_count: participantCount,
+      story_id: storyId
+    });
+  } catch (error) {
+    console.error('Error updating voting stats:', error);
+  }
+}
 
 initializeDatabase()
   .then(() => {
@@ -593,13 +627,7 @@ io.on('connection', (socket) => {
       
       const currentStory = room.current_story_id ? room.stories.find(s => s.id === room.current_story_id) : null;
       
-      const connectedParticipants = [];
-      for (const [participantId, socketId] of connectedUsers.entries()) {
-        const participantSocket = io.sockets.sockets.get(socketId);
-        if (participantSocket && participantSocket.room_id === room.id) {
-          connectedParticipants.push(participantId);
-        }
-      }
+      const connectedParticipants = getConnectedParticipantsForRoom(room.id);
 
       socket.emit('room_joined', {
         room_id: room.id,
@@ -620,6 +648,11 @@ io.on('connection', (socket) => {
       io.to(room.id).emit('participants_updated', { 
         connected_participant_ids: connectedParticipants 
       });
+      
+      // Update voting stats if there's an active voting
+      if (currentStory && currentStory.voting_state === 'voting') {
+        await updateVotingStats(room.id, currentStory.id);
+      }
       
       
     } catch (error) {
@@ -668,6 +701,9 @@ socket.on('start_voting', async (data) => {
 
         console.log(`[SERVER] Отправляем voting_started в room ${room_id}`);
         io.to(room_id).emit('voting_started', { story_id });
+        
+        // Update voting stats after starting voting
+        await updateVotingStats(room_id, story_id);
     } catch (error) {
         console.error(`[SERVER] Ошибка в start_voting:`, error);
         socket.emit('error', { message: error.message });
@@ -685,18 +721,8 @@ socket.on('start_voting', async (data) => {
         
         await submitVote(story_id, participant_id, participant.name, participant.competence, points);
         
-        const storyVotes = await getStoryVotes(story_id);
-        
-        const connectedParticipants = [];
-        for (const [participantId, socketId] of connectedUsers.entries()) {
-          const participantSocket = io.sockets.sockets.get(socketId);
-          if (participantSocket && participantSocket.room_id === room_id) {
-            connectedParticipants.push(participantId);
-          }
-        }
-        const participantCount = connectedParticipants.length;
-        
-        io.to(room_id).emit('vote_submitted', { vote_count: storyVotes.length, participant_count: participantCount });
+        // Update voting stats after vote submission
+        await updateVotingStats(room_id, story_id);
       } finally {
         client.release();
       }
@@ -731,17 +757,6 @@ socket.on('start_voting', async (data) => {
     });
 });
 
-  socket.on('disconnect', () => {
-    if (socket.room_id && socket.participant_id && tempAdmins[socket.room_id]) {
-        tempAdmins[socket.room_id].delete(socket.participant_id);
-
-        io.to(socket.room_id).emit('temp_admins_updated', {
-            room_id: socket.room_id,
-            temp_admin_ids: Array.from(tempAdmins[socket.room_id])
-        });
-    }
-});
-  
   socket.on('finalize_estimate', async (data) => {
     try {
       const { room_id, story_id, final_estimate, participant_id } = data;
@@ -814,13 +829,7 @@ socket.on('start_voting', async (data) => {
         }
       }
       
-      const connectedParticipants = [];
-      for (const [participantId, socketId] of connectedUsers.entries()) {
-        const participantSocket = io.sockets.sockets.get(socketId);
-        if (participantSocket && participantSocket.room_id === room_id) {
-          connectedParticipants.push(participantId);
-        }
-      }
+      const connectedParticipants = getConnectedParticipantsForRoom(room_id);
       
       io.to(room_id).emit('participant_removed_by_admin', {
         participant_id: target_participant_id,
@@ -831,28 +840,56 @@ socket.on('start_voting', async (data) => {
         connected_participant_ids: connectedParticipants 
       });
       
+      // Update voting stats if there's an active voting
+      const room = await getRoomById(room_id);
+      if (room.current_story_id) {
+        const currentStory = room.stories.find(s => s.id === room.current_story_id);
+        if (currentStory && currentStory.voting_state === 'voting') {
+          await updateVotingStats(room_id, currentStory.id);
+        }
+      }
+      
     } catch (error) {
       socket.emit('error', { message: error.message });
     }
   });
   
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
     
     if (socket.participant_id && socket.room_id) {
-      connectedUsers.delete(socket.participant_id);
-      
-      const connectedParticipants = [];
-      for (const [participantId, socketId] of connectedUsers.entries()) {
-        const participantSocket = io.sockets.sockets.get(socketId);
-        if (participantSocket && participantSocket.room_id === socket.room_id) {
-          connectedParticipants.push(participantId);
-        }
+      // Remove from temp admins if applicable
+      if (tempAdmins[socket.room_id]) {
+        tempAdmins[socket.room_id].delete(socket.participant_id);
+        io.to(socket.room_id).emit('temp_admins_updated', {
+          room_id: socket.room_id,
+          temp_admin_ids: Array.from(tempAdmins[socket.room_id] || [])
+        });
       }
       
+      // Remove from connected users
+      connectedUsers.delete(socket.participant_id);
+      
+      // Get updated connected participants
+      const connectedParticipants = getConnectedParticipantsForRoom(socket.room_id);
+      
+      // Notify about participants update
       io.to(socket.room_id).emit('participants_updated', { 
         connected_participant_ids: connectedParticipants 
       });
+      
+      // Update voting stats if there's an active voting
+      try {
+        const room = await getRoomById(socket.room_id);
+        if (room && room.current_story_id) {
+          const currentStory = room.stories.find(s => s.id === room.current_story_id);
+          if (currentStory && currentStory.voting_state === 'voting') {
+            await updateVotingStats(socket.room_id, currentStory.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating voting stats on disconnect:', error);
+      }
     }
   });
 });
