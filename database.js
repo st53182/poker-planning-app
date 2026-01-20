@@ -1086,10 +1086,19 @@ async function deleteRacket(racketId) {
     
     try {
       // Сначала проверяем, существует ли ракетка
-      const checkResult = await client.query(
-        'SELECT id, name FROM tennis_rackets WHERE id = $1 OR id::text = $1',
+      // Пробуем найти по UUID или числовому ID
+      let checkResult = await client.query(
+        'SELECT id, name FROM tennis_rackets WHERE id = $1',
         [racketId]
       );
+      
+      // Если не нашли по UUID, пробуем как числовой ID
+      if (checkResult.rows.length === 0) {
+        checkResult = await client.query(
+          'SELECT id, name FROM tennis_rackets WHERE id::text = $1',
+          [racketId.toString()]
+        );
+      }
       
       if (checkResult.rows.length === 0) {
         await client.query('ROLLBACK');
@@ -1099,18 +1108,60 @@ async function deleteRacket(racketId) {
       const racketName = checkResult.rows[0].name;
       const actualRacketId = checkResult.rows[0].id;
       
-      // Удаляем связанные записи из racket_ratings (если таблица существует)
-      try {
-        await client.query('DELETE FROM racket_ratings WHERE racket_id = $1', [actualRacketId]);
-      } catch (err) {
-        // Игнорируем ошибку, если таблица не существует
-        if (!err.message.includes('does not exist') && !err.message.includes('relation')) {
-          console.warn('Could not delete from racket_ratings:', err.message);
+      // Проверяем, существует ли таблица racket_ratings
+      const tableExists = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'racket_ratings'
+        );
+      `);
+      
+      if (tableExists.rows[0].exists) {
+        // Удаляем все связанные записи из racket_ratings
+        const deleteRatingsResult = await client.query(
+          'DELETE FROM racket_ratings WHERE racket_id = $1',
+          [actualRacketId]
+        );
+        console.log(`Удалено оценок: ${deleteRatingsResult.rowCount}`);
+      }
+      
+      // Проверяем другие возможные связанные таблицы
+      const relatedTables = ['racket_reviews', 'racket_comments', 'racket_favorites'];
+      for (const tableName of relatedTables) {
+        const tableCheck = await client.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = $1
+          );
+        `, [tableName]);
+        
+        if (tableCheck.rows[0].exists) {
+          try {
+            // Пробуем удалить по racket_id
+            await client.query(`DELETE FROM ${tableName} WHERE racket_id = $1`, [actualRacketId]);
+          } catch (err) {
+            // Если колонка называется по-другому, пробуем другие варианты
+            try {
+              await client.query(`DELETE FROM ${tableName} WHERE tennis_racket_id = $1`, [actualRacketId]);
+            } catch (err2) {
+              console.warn(`Не удалось удалить из ${tableName}:`, err2.message);
+            }
+          }
         }
       }
       
       // Удаляем саму ракетку
-      await client.query('DELETE FROM tennis_rackets WHERE id = $1', [actualRacketId]);
+      const deleteResult = await client.query(
+        'DELETE FROM tennis_rackets WHERE id = $1',
+        [actualRacketId]
+      );
+      
+      if (deleteResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        throw new Error('Не удалось удалить ракетку');
+      }
       
       await client.query('COMMIT');
       
