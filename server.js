@@ -45,7 +45,11 @@ const {
   deleteRoom,
   updateParticipantAdminStatus,
   removeParticipant,
-  cleanupDuplicateParticipants
+  cleanupDuplicateParticipants,
+  getAllRackets,
+  getRacketById,
+  getRacketsByBrand,
+  deleteRacket
 } = require('./database');
 
 const app = express();
@@ -580,6 +584,56 @@ app.delete('/api/delete-room', authenticateToken, async (req, res) => {
     res.json({ success: true, message: result.message });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+// API для работы с ракетками
+app.get('/api/admin/rackets', authenticateToken, async (req, res) => {
+  try {
+    const filters = {
+      brand: req.query.brand,
+      year: req.query.year ? parseInt(req.query.year) : undefined,
+      minYear: req.query.minYear ? parseInt(req.query.minYear) : undefined,
+      maxYear: req.query.maxYear ? parseInt(req.query.maxYear) : undefined,
+      search: req.query.search,
+      limit: req.query.limit ? parseInt(req.query.limit) : 50,
+      offset: req.query.offset ? parseInt(req.query.offset) : 0
+    };
+    
+    const rackets = await getAllRackets(filters);
+    res.json({ success: true, rackets });
+  } catch (error) {
+    console.error('Error getting rackets:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/admin/rackets/:id', authenticateToken, async (req, res) => {
+  try {
+    const racket = await getRacketById(req.params.id);
+    if (!racket) {
+      return res.status(404).json({ success: false, error: 'Ракетка не найдена' });
+    }
+    res.json({ success: true, racket });
+  } catch (error) {
+    console.error('Error getting racket:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/admin/rackets/:id', authenticateToken, async (req, res) => {
+  try {
+    const racketId = req.params.id;
+    
+    if (!racketId) {
+      return res.status(400).json({ success: false, error: 'ID ракетки обязателен' });
+    }
+    
+    const result = await deleteRacket(racketId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error deleting racket:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
