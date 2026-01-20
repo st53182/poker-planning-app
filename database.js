@@ -1082,20 +1082,46 @@ async function deleteRacket(racketId) {
       throw new Error('ID ракетки обязателен');
     }
     
-    // Пробуем удалить по UUID или числовому ID
-    const result = await client.query(
-      'DELETE FROM tennis_rackets WHERE id = $1 OR id::text = $1 RETURNING id, name',
-      [racketId]
-    );
+    await client.query('BEGIN');
     
-    if (result.rows.length === 0) {
-      throw new Error('Ракетка не найдена');
+    try {
+      // Сначала проверяем, существует ли ракетка
+      const checkResult = await client.query(
+        'SELECT id, name FROM tennis_rackets WHERE id = $1 OR id::text = $1',
+        [racketId]
+      );
+      
+      if (checkResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        throw new Error('Ракетка не найдена');
+      }
+      
+      const racketName = checkResult.rows[0].name;
+      const actualRacketId = checkResult.rows[0].id;
+      
+      // Удаляем связанные записи из racket_ratings (если таблица существует)
+      try {
+        await client.query('DELETE FROM racket_ratings WHERE racket_id = $1', [actualRacketId]);
+      } catch (err) {
+        // Игнорируем ошибку, если таблица не существует
+        if (!err.message.includes('does not exist') && !err.message.includes('relation')) {
+          console.warn('Could not delete from racket_ratings:', err.message);
+        }
+      }
+      
+      // Удаляем саму ракетку
+      await client.query('DELETE FROM tennis_rackets WHERE id = $1', [actualRacketId]);
+      
+      await client.query('COMMIT');
+      
+      return { 
+        success: true, 
+        message: `Ракетка "${racketName}" успешно удалена` 
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
     }
-    
-    return { 
-      success: true, 
-      message: `Ракетка "${result.rows[0].name}" успешно удалена` 
-    };
   } catch (error) {
     console.error('Error in deleteRacket:', error);
     throw error;
