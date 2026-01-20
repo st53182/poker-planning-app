@@ -146,6 +146,31 @@ async function initializeDatabase() {
     `);
     console.log('Votes table created successfully');
     
+    console.log('Creating tennis_rackets table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tennis_rackets (
+        id UUID PRIMARY KEY,
+        brand VARCHAR(100) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        year INTEGER,
+        description_ru TEXT,
+        product_url TEXT UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Tennis rackets table created successfully');
+    
+    // Создаем индексы для быстрого поиска
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_rackets_brand ON tennis_rackets(brand);
+      CREATE INDEX IF NOT EXISTS idx_rackets_name ON tennis_rackets(name);
+      CREATE INDEX IF NOT EXISTS idx_rackets_year ON tennis_rackets(year);
+    `);
+    console.log('Tennis rackets indexes created successfully');
+    `);
+    console.log('Votes table created successfully');
+    
     console.log('Creating indexes...');
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -977,5 +1002,104 @@ module.exports = {
   deleteRoom,
   updateParticipantAdminStatus,
   removeParticipant,
-  cleanupDuplicateParticipants
+  cleanupDuplicateParticipants,
+  getAllRackets,
+  getRacketById,
+  getRacketsByBrand,
+  deleteRacket
 };
+
+async function getAllRackets(filters = {}) {
+  const client = await pool.connect();
+  try {
+    let query = 'SELECT * FROM tennis_rackets WHERE 1=1';
+    const params = [];
+    let paramIndex = 1;
+    
+    if (filters.brand) {
+      query += ` AND brand = $${paramIndex}`;
+      params.push(filters.brand);
+      paramIndex++;
+    }
+    
+    if (filters.year) {
+      query += ` AND year = $${paramIndex}`;
+      params.push(filters.year);
+      paramIndex++;
+    }
+    
+    if (filters.minYear) {
+      query += ` AND year >= $${paramIndex}`;
+      params.push(filters.minYear);
+      paramIndex++;
+    }
+    
+    if (filters.maxYear) {
+      query += ` AND year <= $${paramIndex}`;
+      params.push(filters.maxYear);
+      paramIndex++;
+    }
+    
+    if (filters.search) {
+      query += ` AND (name ILIKE $${paramIndex} OR description_ru ILIKE $${paramIndex})`;
+      params.push(`%${filters.search}%`);
+      paramIndex++;
+    }
+    
+    query += ` ORDER BY brand, year DESC, name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(filters.limit || 50, filters.offset || 0);
+    
+    const result = await client.query(query, params);
+    
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+async function getRacketById(racketId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query('SELECT * FROM tennis_rackets WHERE id = $1', [racketId]);
+    if (result.rows.length === 0) {
+      return null;
+    }
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
+}
+
+async function getRacketsByBrand(brand) {
+  return getAllRackets({ brand });
+}
+
+async function deleteRacket(racketId) {
+  const client = await pool.connect();
+  try {
+    // Проверяем, что ID передан
+    if (!racketId) {
+      throw new Error('ID ракетки обязателен');
+    }
+    
+    // Пробуем удалить по UUID или числовому ID
+    const result = await client.query(
+      'DELETE FROM tennis_rackets WHERE id = $1 OR id::text = $1 RETURNING id, name',
+      [racketId]
+    );
+    
+    if (result.rows.length === 0) {
+      throw new Error('Ракетка не найдена');
+    }
+    
+    return { 
+      success: true, 
+      message: `Ракетка "${result.rows[0].name}" успешно удалена` 
+    };
+  } catch (error) {
+    console.error('Error in deleteRacket:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
