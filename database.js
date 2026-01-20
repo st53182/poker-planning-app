@@ -168,6 +168,109 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_rackets_year ON tennis_rackets(year);
     `);
     console.log('Tennis rackets indexes created successfully');
+    
+    // Настраиваем CASCADE DELETE для связанных таблиц (если они существуют)
+    console.log('Configuring CASCADE DELETE for related tables...');
+    
+    // Проверяем и настраиваем внешние ключи для racket_ratings
+    const racketRatingsExists = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'racket_ratings'
+      );
+    `);
+    
+    if (racketRatingsExists.rows[0].exists) {
+      // Проверяем существующие внешние ключи
+      const fkCheck = await client.query(`
+        SELECT constraint_name 
+        FROM information_schema.table_constraints 
+        WHERE table_name = 'racket_ratings' 
+        AND constraint_type = 'FOREIGN KEY'
+        AND constraint_name LIKE '%racket_id%';
+      `);
+      
+      // Если внешний ключ существует, удаляем его и создаем с CASCADE
+      if (fkCheck.rows.length > 0) {
+        for (const fk of fkCheck.rows) {
+          try {
+            await client.query(`ALTER TABLE racket_ratings DROP CONSTRAINT IF EXISTS ${fk.constraint_name};`);
+          } catch (err) {
+            console.warn(`Could not drop constraint ${fk.constraint_name}:`, err.message);
+          }
+        }
+      }
+      
+      // Создаем внешний ключ с CASCADE DELETE
+      try {
+        await client.query(`
+          ALTER TABLE racket_ratings 
+          ADD CONSTRAINT fk_racket_ratings_racket_id 
+          FOREIGN KEY (racket_id) 
+          REFERENCES tennis_rackets(id) 
+          ON DELETE CASCADE;
+        `);
+        console.log('CASCADE DELETE configured for racket_ratings');
+      } catch (err) {
+        // Игнорируем, если constraint уже существует или колонка называется по-другому
+        if (!err.message.includes('already exists') && !err.message.includes('column "racket_id" does not exist')) {
+          console.warn('Could not set CASCADE for racket_ratings:', err.message);
+        }
+      }
+    }
+    
+    // Аналогично для других возможных связанных таблиц
+    const relatedTables = [
+      { name: 'racket_reviews', fkColumn: 'racket_id' },
+      { name: 'racket_comments', fkColumn: 'racket_id' },
+      { name: 'racket_favorites', fkColumn: 'racket_id' }
+    ];
+    
+    for (const table of relatedTables) {
+      const tableExists = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = $1
+        );
+      `, [table.name]);
+      
+      if (tableExists.rows[0].exists) {
+        try {
+          // Проверяем существующие внешние ключи
+          const fkCheck = await client.query(`
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE table_name = $1 
+            AND constraint_type = 'FOREIGN KEY';
+          `, [table.name]);
+          
+          // Удаляем старые constraint'ы
+          for (const fk of fkCheck.rows) {
+            try {
+              await client.query(`ALTER TABLE ${table.name} DROP CONSTRAINT IF EXISTS ${fk.constraint_name};`);
+            } catch (err) {
+              // Игнорируем ошибки
+            }
+          }
+          
+          // Создаем новый с CASCADE
+          await client.query(`
+            ALTER TABLE ${table.name} 
+            ADD CONSTRAINT fk_${table.name}_racket_id 
+            FOREIGN KEY (${table.fkColumn}) 
+            REFERENCES tennis_rackets(id) 
+            ON DELETE CASCADE;
+          `);
+          console.log(`CASCADE DELETE configured for ${table.name}`);
+        } catch (err) {
+          if (!err.message.includes('already exists') && !err.message.includes('does not exist')) {
+            console.warn(`Could not set CASCADE for ${table.name}:`, err.message);
+          }
+        }
+      }
+    }
     `);
     console.log('Votes table created successfully');
     
@@ -1118,35 +1221,68 @@ async function deleteRacket(racketId) {
       `);
       
       if (tableExists.rows[0].exists) {
-        // Удаляем все связанные записи из racket_ratings
+        // КРИТИЧЕСКИ ВАЖНО: Удаляем все связанные записи из racket_ratings ПЕРЕД удалением ракетки
+        // Это предотвращает попытку SQLAlchemy установить racket_id = NULL
         const deleteRatingsResult = await client.query(
           'DELETE FROM racket_ratings WHERE racket_id = $1',
           [actualRacketId]
         );
-        console.log(`Удалено оценок: ${deleteRatingsResult.rowCount}`);
+        console.log(`Удалено оценок из racket_ratings: ${deleteRatingsResult.rowCount}`);
+        
+        // Дополнительная проверка - убеждаемся, что все записи удалены
+        const remainingCheck = await client.query(
+          'SELECT COUNT(*) as count FROM racket_ratings WHERE racket_id = $1',
+          [actualRacketId]
+        );
+        if (parseInt(remainingCheck.rows[0].count) > 0) {
+          console.warn(`ВНИМАНИЕ: Осталось ${remainingCheck.rows[0].count} записей в racket_ratings для ракетки ${actualRacketId}`);
+          // Пробуем удалить еще раз
+          await client.query('DELETE FROM racket_ratings WHERE racket_id = $1', [actualRacketId]);
+        }
       }
       
       // Проверяем другие возможные связанные таблицы
-      const relatedTables = ['racket_reviews', 'racket_comments', 'racket_favorites'];
-      for (const tableName of relatedTables) {
+      const relatedTables = [
+        { name: 'racket_reviews', columns: ['racket_id', 'tennis_racket_id'] },
+        { name: 'racket_comments', columns: ['racket_id', 'tennis_racket_id'] },
+        { name: 'racket_favorites', columns: ['racket_id', 'tennis_racket_id'] }
+      ];
+      
+      for (const table of relatedTables) {
         const tableCheck = await client.query(`
           SELECT EXISTS (
             SELECT FROM information_schema.tables 
             WHERE table_schema = 'public' 
             AND table_name = $1
           );
-        `, [tableName]);
+        `, [table.name]);
         
         if (tableCheck.rows[0].exists) {
-          try {
-            // Пробуем удалить по racket_id
-            await client.query(`DELETE FROM ${tableName} WHERE racket_id = $1`, [actualRacketId]);
-          } catch (err) {
-            // Если колонка называется по-другому, пробуем другие варианты
+          // Пробуем удалить по каждой возможной колонке
+          for (const column of table.columns) {
             try {
-              await client.query(`DELETE FROM ${tableName} WHERE tennis_racket_id = $1`, [actualRacketId]);
-            } catch (err2) {
-              console.warn(`Не удалось удалить из ${tableName}:`, err2.message);
+              // Проверяем, существует ли колонка
+              const columnExists = await client.query(`
+                SELECT EXISTS (
+                  SELECT FROM information_schema.columns 
+                  WHERE table_schema = 'public' 
+                  AND table_name = $1 
+                  AND column_name = $2
+                );
+              `, [table.name, column]);
+              
+              if (columnExists.rows[0].exists) {
+                const result = await client.query(
+                  `DELETE FROM ${table.name} WHERE ${column} = $1`,
+                  [actualRacketId]
+                );
+                if (result.rowCount > 0) {
+                  console.log(`Удалено из ${table.name} по ${column}: ${result.rowCount}`);
+                }
+                break; // Если удалили по одной колонке, не пробуем другие
+              }
+            } catch (err) {
+              console.warn(`Ошибка при удалении из ${table.name} по ${column}:`, err.message);
             }
           }
         }
