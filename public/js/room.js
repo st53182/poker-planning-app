@@ -14,13 +14,44 @@ class PlanningPokerRoom {
         this.joinRoom();
     }
 
+    // Translation helper with {placeholder} substitution. Falls back gracefully
+    // when the translation manager has not finished loading yet.
+    t(key, params) {
+        if (window.translationManager) {
+            return window.translationManager.t(key, params);
+        }
+        return key;
+    }
+
+    // Re-render all JS-generated content when the language changes so the room
+    // page updates instantly when the user toggles RU/EN.
+    applyLanguage() {
+        if (!this.roomData || !this.roomData.room_id) {
+            return;
+        }
+        const estType = this.roomData.estimation_type;
+        const estEl = document.getElementById('estimationType');
+        if (estEl) {
+            estEl.textContent = this.t(estType === 'story_points'
+                ? 'room.estimation_type_story'
+                : 'room.estimation_type_hours');
+        }
+        const roomNameEl = document.getElementById('roomName');
+        if (roomNameEl && !this.roomData.room_name) {
+            roomNameEl.textContent = this.t('room.planning_room');
+        }
+        this.updateParticipantsList();
+        this.updateStoriesList();
+        this.updateVotingState();
+    }
+
     initializeEventListeners() {
         document.getElementById('copyLinkBtn').addEventListener('click', () => {
             const baseUrl = window.location.origin + window.location.pathname;
             navigator.clipboard.writeText(baseUrl).then(() => {
-                this.showToast('Ссылка на комнату скопирована!', 'success');
+                this.showToast(this.t('room.messages.link_copied'), 'success');
             }).catch(() => {
-                this.showToast(`Поделитесь этой ссылкой: ${baseUrl}`, 'info');
+                this.showToast(this.t('room.messages.share_link', { url: baseUrl }), 'info');
             });
         });
 
@@ -242,7 +273,7 @@ class PlanningPokerRoom {
         });
 
         this.socket.on('voting_interrupted', (data) => {
-            this.showToast('Голосование прервано. Выбрана новая история.', 'info');
+            this.showToast(this.t('room.messages.voting_interrupted'), 'info');
             this.resetVotingState();
         });
 
@@ -256,7 +287,7 @@ class PlanningPokerRoom {
         this.socket.on('participant_removed_by_admin', (data) => {
             this.participants = this.participants.filter(p => p.id !== data.participant_id);
             this.updateParticipantsList();
-            this.showToast(`Участник ${data.participant_name} был удален из комнаты`, 'info');
+            this.showToast(this.t('room.messages.participant_removed', { name: data.participant_name }), 'info');
         });
 
         this.socket.on('participants_list_updated', (data) => {
@@ -365,7 +396,7 @@ if (token && userInfoRaw) {
                 competence = document.getElementById('joinCompetence').value;
                 
                 if (!name) {
-                    this.showError('Пожалуйста, введите ваше имя');
+                    this.showError(this.t('room.messages.enter_name'));
                     return;
                 }
                 
@@ -411,8 +442,8 @@ if (token && userInfoRaw) {
         this.isAdmin = data.participant.is_admin;
         this.connectedParticipantIds = data.connected_participant_ids || data.participants.map(p => p.id);
 
-        document.getElementById('roomName').textContent = data.room_name || 'Комната Планирования';
-        document.getElementById('estimationType').textContent = `Тип оценки: ${data.estimation_type === 'story_points' ? 'Стори поинты' : 'Часы'}`;
+        document.getElementById('roomName').textContent = data.room_name || this.t('room.planning_room');
+        document.getElementById('estimationType').textContent = this.t(data.estimation_type === 'story_points' ? 'room.estimation_type_story' : 'room.estimation_type_hours');
         document.getElementById('userName').textContent = data.participant.name;
         document.getElementById('userCompetence').textContent = data.participant.competence;
         const token = localStorage.getItem('auth_token');
@@ -512,10 +543,10 @@ if (claimBtn) {
         const description = document.getElementById('newStoryDescription').value.trim();
         
         if (!title) {
-            this.showError('Пожалуйста, введите название истории');
+            this.showError(this.t('room.messages.enter_story_title'));
             return;
         }
-        
+
         this.socket.emit('create_story', {
             room_id: this.roomData.room_id,
             title: title,
@@ -529,7 +560,7 @@ if (claimBtn) {
 
     setCurrentStory(storyId) {
     if (!this.hasAdminRights()) {
-        this.showError('Только администратор может выбрать историю');
+        this.showError(this.t('room.messages.only_admin_select'));
         return;
     }
 
@@ -552,12 +583,12 @@ if (claimBtn) {
 
     startVoting() {
     if (!this.hasAdminRights()) {
-        this.showError('Только администратор может начать голосование');
+        this.showError(this.t('room.messages.only_admin_start'));
         return;
     }
 
     if (!this.currentStory) {
-        this.showError('Сначала выберите историю для голосования');
+        this.showError(this.t('room.messages.select_story_first'));
         return;
     }
 
@@ -579,17 +610,17 @@ if (claimBtn) {
         });
 
         document.getElementById('submitVoteBtn').classList.add('hidden');
-        this.showToast('Голос отправлен!', 'success');
+        this.showToast(this.t('room.messages.vote_submitted'), 'success');
     }
 
     revealVotes() {
     if (!this.hasAdminRights()) {
-        this.showError('Только администратор может раскрыть голоса');
+        this.showError(this.t('room.messages.only_admin_reveal'));
         return;
     }
 
     if (!this.currentStory) {
-        this.showError('Нет активной истории для раскрытия голосов');
+        this.showError(this.t('room.messages.no_active_story'));
         return;
     }
 
@@ -603,12 +634,12 @@ if (claimBtn) {
     finalizeEstimate() {
         const finalEstimate = parseFloat(document.getElementById('finalEstimateInput').value);
         if (!this.hasAdminRights()) {
-        this.showError('Только администратор может завершить голосование');
+        this.showError(this.t('room.messages.only_admin_finalize'));
         return;
         }
 
         if (!finalEstimate) {
-            this.showError('Пожалуйста, введите финальную оценку');
+            this.showError(this.t('room.messages.enter_final_estimate'));
             return;
         }
 
@@ -625,14 +656,14 @@ if (claimBtn) {
 
     removeParticipant(participantId) {
         if (!(this.isAdmin || this.participant.is_temp_admin)) {
-            this.showError('Только администраторы могут удалять участников');
+            this.showError(this.t('room.messages.only_admin_remove'));
             return;
         }
 
         const participant = this.participants.find(p => p.id === participantId);
         if (!participant) return;
 
-        if (confirm(`Вы уверены, что хотите удалить участника ${participant.name} из комнаты?`)) {
+        if (confirm(this.t('room.messages.confirm_remove_participant', { name: participant.name }))) {
             this.socket.emit('remove_participant', {
                 room_id: this.roomData.room_id,
                 target_participant_id: participantId,
@@ -644,12 +675,12 @@ if (claimBtn) {
     async claimRoom() {
         const token = localStorage.getItem('auth_token');
         if (!token) {
-            this.showError('Необходимо войти в систему для присвоения комнаты');
+            this.showError(this.t('room.messages.login_required_claim'));
             return;
         }
 
         if (!this.roomData || !this.roomData.room_id) {
-            this.showError('Данные комнаты не загружены. Попробуйте обновить страницу.');
+            this.showError(this.t('room.messages.room_data_not_loaded'));
             return;
         }
 
@@ -680,18 +711,18 @@ if (claimBtn) {
                 this.showError(result.error);
             }
         } catch (error) {
-            this.showError('Ошибка при присвоении комнаты: ' + error.message);
+            this.showError(this.t('room.messages.claim_error', { error: error.message }));
         }
     }
 
     async deleteRoom() {
         const token = localStorage.getItem('auth_token');
         if (!token) {
-            this.showError('Необходимо войти в систему для удаления комнаты');
+            this.showError(this.t('room.messages.login_required_delete'));
             return;
         }
 
-        if (!confirm('Вы уверены, что хотите удалить эту комнату? Это действие нельзя отменить.')) {
+        if (!confirm(this.t('room.messages.confirm_delete_room'))) {
             return;
         }
 
@@ -716,7 +747,7 @@ if (claimBtn) {
                 this.showError(result.error);
             }
         } catch (error) {
-            this.showError('Ошибка при удалении комнаты: ' + error.message);
+            this.showError(this.t('room.messages.delete_error', { error: error.message }));
         }
     }
 
@@ -783,7 +814,7 @@ if (claimBtn) {
             });
             
             if (!result || !result.success) {
-                throw new Error(result?.error || 'Ошибка получения анализа');
+                throw new Error(result?.error || this.t('room.messages.analysis_error'));
             }
             
             const analysis = result.analysis;
@@ -860,7 +891,7 @@ if (claimBtn) {
             startBtn.classList.add('hidden');
             revealBtn.classList.add('hidden');
             finalizeControls.classList.add('hidden');
-            badge.textContent = window.translationManager ? window.translationManager.t('room.voting_states.not_started') : 'Не начато';
+            badge.textContent = this.t('room.voting_states.not_started');
             badge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800';
             return;
         }
@@ -868,10 +899,10 @@ if (claimBtn) {
         const state = this.currentStory.voting_state;
 
         const stateLabels = {
-            'not_started': window.translationManager ? window.translationManager.t('room.voting_states.not_started') : 'Не начато',
-            'voting': window.translationManager ? window.translationManager.t('room.voting_states.voting') : 'Голосование',
-            'revealed': window.translationManager ? window.translationManager.t('room.voting_states.revealed') : 'Показано',
-            'completed': window.translationManager ? window.translationManager.t('room.voting_states.completed') : 'Завершено'
+            'not_started': this.t('room.voting_states.not_started'),
+            'voting': this.t('room.voting_states.voting'),
+            'revealed': this.t('room.voting_states.revealed'),
+            'completed': this.t('room.voting_states.completed')
         };
 
         const stateClasses = {
@@ -931,14 +962,15 @@ if (claimBtn) {
             return;
         }
 
+        const unitLabel = this.t(this.roomData.estimation_type === 'story_points' ? 'room.points_short' : 'room.hours_short');
         valueSpan.textContent = this.selectedVote;
-        typeSpan.textContent = this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов';
+        typeSpan.textContent = unitLabel;
 
         list.innerHTML = '';
         stories.slice(0, 5).forEach(story => {
             const storyElement = document.createElement('div');
             storyElement.className = 'text-sm text-blue-800';
-            storyElement.textContent = `"${story.title}" - ${story.points} ${this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов'}`;
+            storyElement.textContent = `"${story.title}" - ${story.points} ${unitLabel}`;
             list.appendChild(storyElement);
         });
 
@@ -955,7 +987,7 @@ if (claimBtn) {
     count.textContent = connectedParticipants.length;
 
     if (this.participants.length === 0) {
-        container.innerHTML = '<p class="text-gray-500 text-center py-8">Пока нет участников.</p>';
+        container.innerHTML = `<p class="text-gray-500 text-center py-8">${this.t('room.no_participants')}</p>`;
         return;
     }
 
@@ -972,14 +1004,14 @@ if (claimBtn) {
         // Бейдж "Админ" или "Временный админ"
         let badgeHTML = '';
         if (participant.is_admin) {
-            badgeHTML = '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Админ</span>';
+            badgeHTML = `<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">${this.t('room.admin')}</span>`;
         } else if (participant.is_temp_admin) {
-            badgeHTML = '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Временный админ</span>';
+            badgeHTML = `<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">${this.t('room.temp_admin')}</span>`;
         }
 
         // Кнопка "Удалить"
         const removeBtn = (this.isAdmin || this.participant.is_temp_admin) && participant.id !== this.participant.id
-            ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">Удалить</button>`
+            ? `<button onclick="room.removeParticipant('${participant.id}')" class="text-xs text-red-600 hover:text-red-800 ml-2">${this.t('room.remove')}</button>`
             : '';
 
         // Кнопка "Сделать временным админом"
@@ -992,7 +1024,7 @@ if (claimBtn) {
             makeTempAdminBtn = `
                 <button onclick="room.makeTempAdmin('${participant.id}')"
                     class="text-xs text-blue-600 hover:text-blue-800 ml-2 border border-blue-200 rounded px-2 py-1">
-                    Сделать временным админом
+                    ${this.t('room.make_temp_admin')}
                 </button>
             `;
         }
@@ -1028,7 +1060,7 @@ if (claimBtn) {
         }
 
         if (displayStories.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-8">Нет историй для отображения.</p>';
+            container.innerHTML = `<p class="text-gray-500 text-center py-8">${this.t('room.no_stories_display')}</p>`;
             return;
         }
 
@@ -1059,10 +1091,10 @@ if (claimBtn) {
                     this.setCurrentStory(story.id);
                 }
             });
-            storyElement.title = 'Нажмите, чтобы начать оценку этой истории';
+            storyElement.title = this.t('room.click_to_estimate_title');
 
             const finalEstimateBadge = story.final_estimate
-                ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">${story.final_estimate} ${this.roomData.estimation_type === 'story_points' ? 'поинтов' : 'часов'}</span>`
+                ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">${story.final_estimate} ${this.t(this.roomData.estimation_type === 'story_points' ? 'room.points_short' : 'room.hours_short')}</span>`
                 : '';
 
             const stateClasses = {
@@ -1073,19 +1105,19 @@ if (claimBtn) {
             };
 
             const stateLabels = {
-                'not_started': 'Не начато',
-                'voting': 'Голосование',
-                'revealed': 'Показано',
-                'completed': 'Завершено'
+                'not_started': this.t('room.voting_states.not_started'),
+                'voting': this.t('room.voting_states.voting'),
+                'revealed': this.t('room.voting_states.revealed'),
+                'completed': this.t('room.voting_states.completed')
             };
 
             const clickHintText = !isCurrentStory ?
-                '<div class="text-xs text-blue-600 mt-1">👆 Нажмите для начала оценки</div>' : '';
+                `<div class="text-xs text-blue-600 mt-1">${this.t('room.click_to_start')}</div>` : '';
 
             const actionButtons = this.isAdmin ? `
                 <div class="flex space-x-2 mt-2">
-                    <button onclick="room.editStory('${story.id}')" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded">Редактировать</button>
-                    <button onclick="room.deleteStory('${story.id}')" class="text-xs text-red-600 hover:text-red-800 px-2 py-1 bg-red-50 rounded">Удалить</button>
+                    <button onclick="room.editStory('${story.id}')" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded">${this.t('room.edit')}</button>
+                    <button onclick="room.deleteStory('${story.id}')" class="text-xs text-red-600 hover:text-red-800 px-2 py-1 bg-red-50 rounded">${this.t('room.delete')}</button>
                 </div>
             ` : '';
 
@@ -1207,13 +1239,13 @@ if (claimBtn) {
         const file = fileInput.files[0];
 
         if (!file) {
-            this.showError('Пожалуйста, выберите изображение');
+            this.showError(this.t('room.messages.select_image'));
             return;
         }
 
         const button = document.getElementById('createStoriesFromImageBtn');
         button.disabled = true;
-        button.textContent = 'Обработка...';
+        button.textContent = this.t('room.messages.processing');
 
         const formData = new FormData();
         formData.append('image', file);
@@ -1226,16 +1258,16 @@ if (claimBtn) {
                 body: formData
             }).then(r => r.json());
             if (result.success) {
-                this.showToast(`Создано ${result.stories.length} историй из изображения`, 'success');
+                this.showToast(this.t('room.messages.stories_created_image', { count: result.stories.length }), 'success');
                 this.closeImageUploadModal();
             } else {
                 this.showError(result.error);
             }
         } catch (error) {
-            this.showError('Ошибка при создании историй: ' + error.message);
+            this.showError(this.t('room.messages.create_stories_error', { error: error.message }));
         } finally {
             button.disabled = false;
-            button.textContent = 'Создать истории';
+            button.textContent = this.t('room.create_stories');
         }
     }
 
@@ -1243,13 +1275,13 @@ if (claimBtn) {
         const text = document.getElementById('bulkTextInput').value.trim();
 
         if (!text) {
-            this.showError('Пожалуйста, введите текст');
+            this.showError(this.t('room.messages.enter_text'));
             return;
         }
 
         const button = document.getElementById('createStoriesFromTextBtn');
         button.disabled = true;
-        button.textContent = 'Обработка...';
+        button.textContent = this.t('room.messages.processing');
 
         try {
             const result = await window.apiClient?.post('/api/bulk-create-stories-text', {
@@ -1266,16 +1298,16 @@ if (claimBtn) {
                 })
             }).then(r => r.json());
             if (result.success) {
-                this.showToast(`Создано ${result.stories.length} историй из текста`, 'success');
+                this.showToast(this.t('room.messages.stories_created_text', { count: result.stories.length }), 'success');
                 this.closeTextUploadModal();
             } else {
                 this.showError(result.error);
             }
         } catch (error) {
-            this.showError('Ошибка при создании историй: ' + error.message);
+            this.showError(this.t('room.messages.create_stories_error', { error: error.message }));
         } finally {
             button.disabled = false;
-            button.textContent = 'Создать истории';
+            button.textContent = this.t('room.create_stories');
         }
     }
 
@@ -1291,7 +1323,7 @@ if (claimBtn) {
         const container = document.getElementById('storiesList');
 
         if (stories.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-8">Нет историй, соответствующих фильтру.</p>';
+            container.innerHTML = `<p class="text-gray-500 text-center py-8">${this.t('room.no_stories_filter')}</p>`;
             return;
         }
 
@@ -1330,17 +1362,17 @@ if (claimBtn) {
             };
 
             const stateLabels = {
-                'not_started': 'Не начата',
-                'voting': 'Голосование',
-                'revealed': 'Голоса открыты',
-                'finalized': 'Завершена'
+                'not_started': this.t('room.voting_states.not_started'),
+                'voting': this.t('room.voting_states.voting'),
+                'revealed': this.t('room.voting_states.revealed'),
+                'finalized': this.t('room.voting_states.completed')
             };
 
-            const clickHintText = this.isAdmin && !isCurrentStory ? ' (нажмите для выбора)' : '';
+            const clickHintText = this.isAdmin && !isCurrentStory ? this.t('room.click_to_select') : '';
             const actionButtons = this.isAdmin ? `
                 <div class="flex space-x-2 mt-2">
-                    <button onclick="room.editStory('${story.id}')" class="text-xs text-blue-600 hover:text-blue-800">Редактировать</button>
-                    <button onclick="room.deleteStory('${story.id}')" class="text-xs text-red-600 hover:text-red-800">Удалить</button>
+                    <button onclick="room.editStory('${story.id}')" class="text-xs text-blue-600 hover:text-blue-800">${this.t('room.edit')}</button>
+                    <button onclick="room.deleteStory('${story.id}')" class="text-xs text-red-600 hover:text-red-800">${this.t('room.delete')}</button>
                 </div>
             ` : '';
 
@@ -1379,7 +1411,7 @@ if (claimBtn) {
         const description = document.getElementById('editStoryDescription').value.trim();
 
         if (!title) {
-            this.showError('Пожалуйста, введите название истории');
+            this.showError(this.t('room.messages.enter_story_title'));
             return;
         }
 
@@ -1399,7 +1431,7 @@ if (claimBtn) {
     }
 
     deleteStory(storyId) {
-        if (confirm('Вы уверены, что хотите удалить эту историю?')) {
+        if (confirm(this.t('room.messages.confirm_delete_story'))) {
             this.socket.emit('delete_story', {
                 story_id: storyId,
                 room_id: this.roomData.room_id
@@ -1461,7 +1493,7 @@ if (claimBtn) {
 
     makeTempAdmin(participantId) {
     if (!this.isAdmin) {
-        this.showError('Только основной админ может назначать временных админов');
+        this.showError(this.t('room.messages.only_main_admin_temp'));
         return;
     }
 

@@ -112,7 +112,7 @@
                 if (result && result.success) {
                     displayRooms(result.rooms);
                 } else {
-                    throw new Error(result?.error || 'Ошибка загрузки комнат');
+                    throw new Error(result?.error || (window.translationManager ? window.translationManager.t('dashboard.load_rooms_error') : 'Ошибка загрузки комнат'));
                 }
             } catch (error) {
                 document.getElementById('loading').classList.add('hidden');
@@ -218,7 +218,7 @@
             
             const token = localStorage.getItem('auth_token');
             if (!token) {
-                showToast('Необходимо войти в систему для удаления комнаты', 'error');
+                showToast(window.translationManager ? window.translationManager.t('dashboard.login_required_delete') : 'Необходимо войти в систему для удаления комнаты', 'error');
                 return;
             }
             
@@ -233,13 +233,13 @@
                 }).then(r => r.json());
                 
                 if (result.success) {
-                    showToast('Комната успешно удалена');
+                    showToast(window.translationManager ? window.translationManager.t('dashboard.room_deleted') : 'Комната успешно удалена');
                     loadRooms();
                 } else {
-                    showToast(result.error || 'Ошибка при удалении комнаты', 'error');
+                    showToast(result.error || (window.translationManager ? window.translationManager.t('dashboard.delete_room_error') : 'Ошибка при удалении комнаты'), 'error');
                 }
             } catch (error) {
-                showToast('Ошибка при удалении комнаты', 'error');
+                showToast(window.translationManager ? window.translationManager.t('dashboard.delete_room_error') : 'Ошибка при удалении комнаты', 'error');
             }
         }
 

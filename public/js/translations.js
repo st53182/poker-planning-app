@@ -1,8 +1,16 @@
 class TranslationManager {
     constructor() {
-        this.currentLanguage = localStorage.getItem('language') || 'ru';
+        this.currentLanguage = localStorage.getItem('language') || this.detectLanguage();
         this.translations = {};
-        this.loadTranslations();
+        this.loaded = false;
+        this.loadPromise = this.loadTranslations();
+    }
+
+    detectLanguage() {
+        // Default to the browser language so first-time visitors get a sensible
+        // version; anything that isn't Russian falls back to English.
+        const lang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+        return lang.startsWith('ru') ? 'ru' : 'en';
     }
 
     async loadTranslations() {
@@ -11,12 +19,14 @@ class TranslationManager {
                 fetch('/translations/ru.json'),
                 fetch('/translations/en.json')
             ]);
-            
+
             this.translations.ru = await ruResponse.json();
             this.translations.en = await enResponse.json();
-            
+            this.loaded = true;
+
             this.updatePageContent();
             this.updateLanguageSwitcher();
+            this.notifyChange();
         } catch (error) {
             console.error('Failed to load translations:', error);
         }
@@ -27,22 +37,53 @@ class TranslationManager {
         localStorage.setItem('language', language);
         this.updatePageContent();
         this.updateLanguageSwitcher();
-        
+        this.notifyChange();
+
         const titleKey = document.querySelector('meta[name="title-key"]')?.content;
         if (titleKey) {
             document.title = this.t(titleKey);
         }
     }
 
-    t(key) {
+    // Re-render dynamic, JS-generated content (e.g. the room page) whenever the
+    // language changes or translations finish loading.
+    notifyChange() {
+        if (window.room && typeof window.room.applyLanguage === 'function') {
+            try {
+                window.room.applyLanguage();
+            } catch (e) {
+                console.warn('applyLanguage failed', e);
+            }
+        }
+    }
+
+    t(key, params) {
         const keys = key.split('.');
         let value = this.translations[this.currentLanguage];
-        
+
         for (const k of keys) {
             value = value?.[k];
         }
-        
-        return value || key;
+
+        // Fall back to the other language if the key is missing, then to the key.
+        if (value === undefined || value === null) {
+            const fallbackLang = this.currentLanguage === 'ru' ? 'en' : 'ru';
+            let fallback = this.translations[fallbackLang];
+            for (const k of keys) {
+                fallback = fallback?.[k];
+            }
+            value = fallback;
+        }
+
+        let result = value || key;
+
+        if (params && typeof result === 'string') {
+            Object.keys(params).forEach(p => {
+                result = result.replace(new RegExp('\\{' + p + '\\}', 'g'), params[p]);
+            });
+        }
+
+        return result;
     }
 
     updatePageContent() {
